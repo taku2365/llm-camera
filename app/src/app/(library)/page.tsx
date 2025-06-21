@@ -18,8 +18,18 @@ export default function LibraryPage() {
       /\.(cr2|cr3|nef|arw|dng|raf|orf|rw2|pef)$/i.test(file.name)
     )
     
-    // TODO: Process RAW files
-    console.log("Dropped RAW files:", rawFiles)
+    if (rawFiles.length > 0) {
+      // For now, just add mock photos
+      const newPhotos = rawFiles.map((file, index) => ({
+        id: `photo-${Date.now()}-${index}`,
+        name: file.name,
+        url: URL.createObjectURL(file), // Temporary preview
+      }))
+      setPhotos(prev => [...prev, ...newPhotos])
+      
+      // Navigate to first photo
+      router.push(`/editor/${newPhotos[0].id}`)
+    }
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -37,8 +47,18 @@ export default function LibraryPage() {
       /\.(cr2|cr3|nef|arw|dng|raf|orf|rw2|pef)$/i.test(file.name)
     )
     
-    // TODO: Process RAW files
-    console.log("Selected RAW files:", rawFiles)
+    if (rawFiles.length > 0) {
+      // For now, just add mock photos
+      const newPhotos = rawFiles.map((file, index) => ({
+        id: `photo-${Date.now()}-${index}`,
+        name: file.name,
+        url: URL.createObjectURL(file), // Temporary preview
+      }))
+      setPhotos(prev => [...prev, ...newPhotos])
+      
+      // Navigate to first photo
+      router.push(`/editor/${newPhotos[0].id}`)
+    }
   }
 
   return (
