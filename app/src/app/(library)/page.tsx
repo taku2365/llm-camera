@@ -2,12 +2,15 @@
 
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { usePhotosStore } from "@/lib/store/photos"
+import { Photo } from "@/lib/types"
 
 export default function LibraryPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [photos, setPhotos] = useState<Array<{ id: string; name: string; url: string }>>([])
+  const { photos, addPhoto, setCurrentPhoto } = usePhotosStore()
+  const photosList = Array.from(photos.values())
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
@@ -19,16 +22,35 @@ export default function LibraryPage() {
     )
     
     if (rawFiles.length > 0) {
-      // For now, just add mock photos
-      const newPhotos = rawFiles.map((file, index) => ({
-        id: `photo-${Date.now()}-${index}`,
-        name: file.name,
-        url: URL.createObjectURL(file), // Temporary preview
-      }))
-      setPhotos(prev => [...prev, ...newPhotos])
+      // Create photo objects and add to store
+      const firstPhotoId = `photo-${Date.now()}-0`
       
-      // Navigate to first photo
-      router.push(`/editor/${newPhotos[0].id}`)
+      rawFiles.forEach((file, index) => {
+        const photo: Photo = {
+          id: `photo-${Date.now()}-${index}`,
+          filename: file.name,
+          rawUrl: URL.createObjectURL(file),
+          metadata: {
+            camera: 'Unknown',
+            lens: 'Unknown',
+            iso: 0,
+            aperture: 0,
+            shutterSpeed: '',
+            focalLength: 0,
+            date: new Date(file.lastModified),
+            width: 0,
+            height: 0,
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        
+        addPhoto(photo, file)
+      })
+      
+      // Set current photo and navigate
+      setCurrentPhoto(firstPhotoId)
+      router.push(`/editor/${firstPhotoId}`)
     }
   }
 
@@ -48,16 +70,35 @@ export default function LibraryPage() {
     )
     
     if (rawFiles.length > 0) {
-      // For now, just add mock photos
-      const newPhotos = rawFiles.map((file, index) => ({
-        id: `photo-${Date.now()}-${index}`,
-        name: file.name,
-        url: URL.createObjectURL(file), // Temporary preview
-      }))
-      setPhotos(prev => [...prev, ...newPhotos])
+      // Create photo objects and add to store
+      const firstPhotoId = `photo-${Date.now()}-0`
       
-      // Navigate to first photo
-      router.push(`/editor/${newPhotos[0].id}`)
+      rawFiles.forEach((file, index) => {
+        const photo: Photo = {
+          id: `photo-${Date.now()}-${index}`,
+          filename: file.name,
+          rawUrl: URL.createObjectURL(file),
+          metadata: {
+            camera: 'Unknown',
+            lens: 'Unknown',
+            iso: 0,
+            aperture: 0,
+            shutterSpeed: '',
+            focalLength: 0,
+            date: new Date(file.lastModified),
+            width: 0,
+            height: 0,
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        
+        addPhoto(photo, file)
+      })
+      
+      // Set current photo and navigate
+      setCurrentPhoto(firstPhotoId)
+      router.push(`/editor/${firstPhotoId}`)
     }
   }
 
@@ -86,7 +127,7 @@ export default function LibraryPage() {
 
       {/* Photo grid or empty state */}
       <div className="flex-1 p-6">
-        {photos.length === 0 ? (
+        {photosList.length === 0 ? (
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -112,17 +153,26 @@ export default function LibraryPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {photos.map((photo) => (
+            {photosList.map((photo) => (
               <div
                 key={photo.id}
-                onClick={() => router.push(`/editor/${photo.id}`)}
+                onClick={() => {
+                  setCurrentPhoto(photo.id)
+                  router.push(`/editor/${photo.id}`)
+                }}
                 className="aspect-[3/2] bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition"
               >
-                <img
-                  src={photo.url}
-                  alt={photo.name}
-                  className="w-full h-full object-cover"
-                />
+                {photo.thumbnailUrl ? (
+                  <img
+                    src={photo.thumbnailUrl}
+                    alt={photo.filename}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-500">
+                    <span className="text-xs text-center px-2">{photo.filename}</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

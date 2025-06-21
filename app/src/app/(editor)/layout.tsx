@@ -21,7 +21,7 @@ export default function EditorLayout({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </a>
-            <h1 className="text-white font-medium">Photo Editor</h1>
+            <h1 className="text-white font-medium">RAW Photo Editor</h1>
           </div>
           <div className="flex items-center space-x-2">
             <button className="px-3 py-1 text-sm text-gray-300 hover:text-white transition">
