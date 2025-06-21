@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://www.dpreview.com/
+HostUrl=https://s3.amazonaws.com/files.prod.dpreview.com/sample_galleries/0641980724/7865302501.arw?X-Amz-Expires=3600&response-content-disposition=attachment;%20filename=%22DSC00085.ARW%22&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAUIXIAMA3N436PSEA/20250621/us-east-1/s3/aws4_request&X-Amz-Date=20250621T125014Z&X-Amz-SignedHeaders=host&X-Amz-Signature=bb77ebff7697406b49eb517ca8eba10321df09e9bac082b17af13278a93d8822
