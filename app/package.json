@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next linta"
+    "lint": "next lint",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.4.1",
@@ -32,17 +35,23 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240815.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.10.6",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "@types/ws": "^8.5.13",
+    "@vitejs/plugin-react": "^4.5.2",
     "boxen": "^8.0.1",
     "drizzle-kit": "^0.30.1",
     "eslint": "^9.18.0",
     "eslint-config-next": "^15.1.4",
+    "jsdom": "^26.1.0",
     "ora": "^8.1.1",
     "postcss": "^8",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
