@@ -161,6 +161,7 @@ export default function LibraryPage() {
                   router.push(`/editor/${photo.id}`)
                 }}
                 className="aspect-[3/2] bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition"
+                data-testid="photo-grid-item"
               >
                 {photo.thumbnailUrl ? (
                   <img

@@ -23,9 +23,12 @@ export default function Histogram({ imageData }: HistogramProps) {
     
     const data = imageData.data
     for (let i = 0; i < data.length; i += 4) {
-      redChannel[data[i]]++
-      greenChannel[data[i + 1]]++
-      blueChannel[data[i + 2]]++
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+      if (r !== undefined) redChannel[r]++
+      if (g !== undefined) greenChannel[g]++
+      if (b !== undefined) blueChannel[b]++
     }
     
     // Find max value for scaling

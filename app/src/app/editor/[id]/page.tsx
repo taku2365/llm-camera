@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import ImageViewer from "@/app/components/editor/ImageViewer"
 import Histogram from "@/app/components/editor/Histogram"
 import BasicAdjustments from "@/app/components/editor/BasicAdjustments"
 import AdvancedAdjustments from "@/app/components/editor/AdvancedAdjustments"
+import ComparisonDebugger from "@/app/components/editor/ComparisonDebugger"
 import { EditParams } from "@/lib/types"
 import { usePhotosStore } from "@/lib/store/photos"
 import { useLibRaw } from "@/lib/hooks/useLibRaw"
@@ -47,6 +48,9 @@ export default function EditorPage() {
   const loadedFileRef = useRef<File | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [lastProcessedParams, setLastProcessedParams] = useState<EditParams | null>(null)
+  const [previousImageData, setPreviousImageData] = useState<ImageData | null>(null)
+  const [showComparison, setShowComparison] = useState(false)
+  const [comparisonMode, setComparisonMode] = useState<'slider' | 'side-by-side'>('slider')
 
   // Load the RAW file when component mounts
   useEffect(() => {
@@ -64,12 +68,19 @@ export default function EditorPage() {
   }, [photo, loadFile, router])
 
   // Manual processing function
-  const handleProcess = () => {
+  const handleProcess = useCallback(() => {
     if (!photo?.file || isLoading || isProcessing) return
+    
+    // Store current image as previous before processing new one
+    if (imageData) {
+      setPreviousImageData(imageData)
+      setShowComparison(true)
+    }
+    
     process(editParams)
     setLastProcessedParams(editParams)
     setHasUnsavedChanges(false)
-  }
+  }, [photo?.file, isLoading, isProcessing, imageData, process, editParams])
   
   // Check if parameters have changed
   useEffect(() => {
@@ -94,9 +105,65 @@ export default function EditorPage() {
       [param]: value
     }))
   }
+  
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ignore if typing in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+      
+      // Convert to lowercase to handle caps lock
+      const key = e.key.toLowerCase()
+      
+      // C key: Toggle comparison
+      if (key === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault()
+        console.log('[DEBUG] C key pressed')
+        setPreviousImageData(prev => {
+          console.log('[DEBUG] previousImageData exists:', !!prev)
+          // Check if we have a previous image
+          if (!prev) return prev
+          
+          // Toggle comparison
+          setShowComparison(show => {
+            console.log('[DEBUG] Toggling comparison from', show, 'to', !show)
+            return !show
+          })
+          return prev
+        })
+      }
+      // M key: Change comparison mode
+      else if (key === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault()
+        console.log('[DEBUG] M key pressed')
+        setShowComparison(show => {
+          console.log('[DEBUG] Current showComparison:', show)
+          // Only change mode if comparison is currently shown
+          if (show && previousImageData) {
+            setComparisonMode(mode => {
+              const newMode = mode === 'slider' ? 'side-by-side' : 'slider'
+              console.log('[DEBUG] Changing mode from', mode, 'to', newMode)
+              return newMode
+            })
+          }
+          return show
+        })
+      }
+      // Space: Process image
+      else if (e.key === ' ' && !isProcessing && hasUnsavedChanges) {
+        e.preventDefault()
+        handleProcess()
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [previousImageData, isProcessing, hasUnsavedChanges, handleProcess])
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex" data-testid="editor-container">
       {/* Main viewing area */}
       <div className="flex-1 flex flex-col bg-gray-900">
         {/* Histogram and Process Button */}
@@ -128,11 +195,20 @@ export default function EditorPage() {
         <div className="flex-1 relative">
           <ImageViewer 
             imageData={imageData}
+            previousImageData={previousImageData}
+            showComparison={showComparison}
+            comparisonMode={comparisonMode}
             isProcessing={isProcessing || isLoading}
           />
           {error && (
             <div className="absolute bottom-4 left-4 bg-red-600 text-white px-4 py-2 rounded">
               Error: {error}
+            </div>
+          )}
+          {previousImageData && (
+            <div className="absolute top-4 right-4 bg-black/50 text-white px-3 py-2 rounded text-sm">
+              <div>Press &quot;C&quot; to toggle comparison</div>
+              {showComparison && <div>Press &quot;M&quot; to change mode</div>}
             </div>
           )}
         </div>
@@ -176,6 +252,15 @@ export default function EditorPage() {
           imageHeight={metadata?.height || 4000}
         />
       </aside>
+      
+      {/* Debug info for development */}
+      {process.env.NODE_ENV === 'development' && (
+        <ComparisonDebugger
+          showComparison={showComparison}
+          comparisonMode={comparisonMode}
+          previousImageData={previousImageData}
+        />
+      )}
     </div>
   )
 }

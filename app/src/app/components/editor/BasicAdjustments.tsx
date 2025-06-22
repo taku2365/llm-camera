@@ -31,6 +31,7 @@ function Slider({ label, value, min, max, step = 1, onChange }: SliderProps) {
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+        data-testid={`${label.toLowerCase().replace(/\s+/g, '-')}-slider`}
       />
     </div>
   )

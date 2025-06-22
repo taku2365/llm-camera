@@ -4,16 +4,27 @@ import { useEffect, useRef, useState } from "react"
 
 interface ImageViewerProps {
   imageData: ImageData | null
+  previousImageData?: ImageData | null
+  showComparison?: boolean
+  comparisonMode?: 'slider' | 'side-by-side'
   isProcessing: boolean
 }
 
-export default function ImageViewer({ imageData, isProcessing }: ImageViewerProps) {
+export default function ImageViewer({ 
+  imageData, 
+  previousImageData,
+  showComparison = false,
+  comparisonMode = 'slider',
+  isProcessing 
+}: ImageViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const previousCanvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [sliderPosition, setSliderPosition] = useState(50) // For slider comparison
 
   useEffect(() => {
     if (!canvasRef.current || !imageData) return
@@ -29,6 +40,22 @@ export default function ImageViewer({ imageData, isProcessing }: ImageViewerProp
     // Draw image data
     ctx.putImageData(imageData, 0, 0)
   }, [imageData])
+  
+  // Draw previous image for comparison
+  useEffect(() => {
+    if (!previousCanvasRef.current || !previousImageData) return
+    
+    const canvas = previousCanvasRef.current
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    
+    // Set canvas size to match image
+    canvas.width = previousImageData.width
+    canvas.height = previousImageData.height
+    
+    // Draw image data
+    ctx.putImageData(previousImageData, 0, 0)
+  }, [previousImageData])
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
@@ -104,22 +131,121 @@ export default function ImageViewer({ imageData, isProcessing }: ImageViewerProp
         </div>
       )}
       
-      <div
-        className="absolute inset-0 flex items-center justify-center"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px)`,
-        }}
-      >
-        <canvas
-          ref={canvasRef}
-          className="shadow-2xl"
+      {showComparison && previousImageData && comparisonMode === 'side-by-side' ? (
+        // Side-by-side comparison
+        <div
+          className="absolute inset-0 flex items-center justify-center"
           style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: "center",
-            imageRendering: zoom > 1.5 ? "pixelated" : "auto",
+            transform: `translate(${pan.x}px, ${pan.y}px)`,
           }}
-        />
-      </div>
+        >
+          <div className="flex gap-4">
+            <div className="relative">
+              <canvas
+                ref={previousCanvasRef}
+                className="shadow-2xl"
+                style={{
+                  transform: `scale(${zoom})`,
+                  transformOrigin: "center",
+                  imageRendering: zoom > 1.5 ? "pixelated" : "auto",
+                }}
+              />
+              <div className="absolute bottom-0 left-0 bg-black/70 text-white px-2 py-1 text-sm">
+                Before
+              </div>
+            </div>
+            <div className="relative">
+              <canvas
+                ref={canvasRef}
+                className="shadow-2xl"
+                style={{
+                  transform: `scale(${zoom})`,
+                  transformOrigin: "center",
+                  imageRendering: zoom > 1.5 ? "pixelated" : "auto",
+                }}
+              />
+              <div className="absolute bottom-0 left-0 bg-black/70 text-white px-2 py-1 text-sm">
+                After
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : showComparison && previousImageData && comparisonMode === 'slider' ? (
+        // Slider comparison
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px)`,
+          }}
+        >
+          <div className="relative" style={{ transform: `scale(${zoom})`, transformOrigin: "center" }}>
+            {/* Previous (full) */}
+            <canvas
+              ref={previousCanvasRef}
+              className="shadow-2xl"
+              style={{
+                imageRendering: zoom > 1.5 ? "pixelated" : "auto",
+              }}
+            />
+            {/* Current (clipped) */}
+            <div 
+              className="absolute inset-0 overflow-hidden"
+              style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
+            >
+              <canvas
+                ref={canvasRef}
+                className="shadow-2xl"
+                style={{
+                  imageRendering: zoom > 1.5 ? "pixelated" : "auto",
+                }}
+              />
+            </div>
+            {/* Slider handle */}
+            <div 
+              className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize"
+              style={{ left: `${sliderPosition}%` }}
+              onMouseDown={(e) => {
+                const rect = e.currentTarget.parentElement!.getBoundingClientRect()
+                const handleDrag = (e: MouseEvent) => {
+                  const x = e.clientX - rect.left
+                  const percent = (x / rect.width) * 100
+                  setSliderPosition(Math.max(0, Math.min(100, percent)))
+                }
+                const handleUp = () => {
+                  document.removeEventListener('mousemove', handleDrag)
+                  document.removeEventListener('mouseup', handleUp)
+                }
+                document.addEventListener('mousemove', handleDrag)
+                document.addEventListener('mouseup', handleUp)
+              }}
+            >
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center">
+                <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        // Normal view
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px)`,
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            className="shadow-2xl"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "center",
+              imageRendering: zoom > 1.5 ? "pixelated" : "auto",
+            }}
+          />
+        </div>
+      )}
       
       {/* Zoom controls */}
       <div className="absolute bottom-4 right-4 flex items-center space-x-2 bg-gray-800 bg-opacity-80 rounded-lg p-2">
