@@ -7,6 +7,7 @@ import Histogram from "@/app/components/editor/Histogram"
 import BasicAdjustments from "@/app/components/editor/BasicAdjustments"
 import AdvancedAdjustments from "@/app/components/editor/AdvancedAdjustments"
 import ComparisonDebugger from "@/app/components/editor/ComparisonDebugger"
+import ImageHistory from "@/app/components/editor/ImageHistory"
 import { EditParams } from "@/lib/types"
 import { usePhotosStore } from "@/lib/store/photos"
 import { useLibRaw } from "@/lib/hooks/useLibRaw"
@@ -51,6 +52,25 @@ export default function EditorPage() {
   const [previousImageData, setPreviousImageData] = useState<ImageData | null>(null)
   const [showComparison, setShowComparison] = useState(false)
   const [comparisonMode, setComparisonMode] = useState<'slider' | 'side-by-side'>('slider')
+  const [imageHistory, setImageHistory] = useState<Array<{
+    id: string
+    imageData: ImageData
+    params: EditParams
+    timestamp: Date
+  }>>([])
+  
+  // Use refs for immediate access in event handlers
+  const showComparisonRef = useRef(showComparison)
+  const previousImageDataRef = useRef(previousImageData)
+  
+  // Keep refs in sync with state
+  useEffect(() => {
+    showComparisonRef.current = showComparison
+  }, [showComparison])
+  
+  useEffect(() => {
+    previousImageDataRef.current = previousImageData
+  }, [previousImageData])
 
   // Load the RAW file when component mounts
   useEffect(() => {
@@ -75,12 +95,23 @@ export default function EditorPage() {
     if (imageData) {
       setPreviousImageData(imageData)
       setShowComparison(true)
+      
+      // Add to history (keep last 10 images)
+      setImageHistory(prev => {
+        const newHistory = [{
+          id: Date.now().toString(),
+          imageData: imageData,
+          params: lastProcessedParams || editParams,
+          timestamp: new Date()
+        }, ...prev].slice(0, 10)
+        return newHistory
+      })
     }
     
     process(editParams)
     setLastProcessedParams(editParams)
     setHasUnsavedChanges(false)
-  }, [photo?.file, isLoading, isProcessing, imageData, process, editParams])
+  }, [photo?.file, isLoading, isProcessing, imageData, process, editParams, lastProcessedParams])
   
   // Check if parameters have changed
   useEffect(() => {
@@ -106,6 +137,28 @@ export default function EditorPage() {
     }))
   }
   
+  // Restore from history
+  const handleRestoreFromHistory = useCallback((item: {
+    id: string
+    imageData: ImageData
+    params: EditParams
+    timestamp: Date
+  }) => {
+    // Set the image data directly (this is already processed)
+    if (imageData) {
+      setPreviousImageData(imageData)
+    }
+    
+    // Update edit params
+    setEditParams(item.params)
+    setLastProcessedParams(item.params)
+    setHasUnsavedChanges(false)
+    
+    // The restored image becomes the current image
+    // We can't set imageData directly, so we need to trigger a process with the restored params
+    process(item.params)
+  }, [imageData, process])
+  
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -120,47 +173,64 @@ export default function EditorPage() {
       // C key: Toggle comparison
       if (key === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
         e.preventDefault()
-        console.log('[DEBUG] C key pressed')
-        setPreviousImageData(prev => {
-          console.log('[DEBUG] previousImageData exists:', !!prev)
-          // Check if we have a previous image
-          if (!prev) return prev
-          
-          // Toggle comparison
-          setShowComparison(show => {
-            console.log('[DEBUG] Toggling comparison from', show, 'to', !show)
-            return !show
-          })
-          return prev
-        })
+        console.log('[DEBUG] C key pressed, previousImage exists:', !!previousImageDataRef.current)
+        
+        // Only toggle if we have a previous image
+        if (previousImageDataRef.current) {
+          const newShowComparison = !showComparisonRef.current
+          console.log('[DEBUG] Toggling comparison from', showComparisonRef.current, 'to', newShowComparison)
+          setShowComparison(newShowComparison)
+        }
       }
       // M key: Change comparison mode
       else if (key === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
         e.preventDefault()
-        console.log('[DEBUG] M key pressed')
-        setShowComparison(show => {
-          console.log('[DEBUG] Current showComparison:', show)
-          // Only change mode if comparison is currently shown
-          if (show && previousImageData) {
-            setComparisonMode(mode => {
-              const newMode = mode === 'slider' ? 'side-by-side' : 'slider'
-              console.log('[DEBUG] Changing mode from', mode, 'to', newMode)
-              return newMode
-            })
-          }
-          return show
-        })
+        console.log('[DEBUG] M key pressed, showComparison:', showComparisonRef.current)
+        
+        // Only change mode if comparison is currently shown
+        if (showComparisonRef.current && previousImageDataRef.current) {
+          setComparisonMode(mode => {
+            const newMode = mode === 'slider' ? 'side-by-side' : 'slider'
+            console.log('[DEBUG] Changing mode from', mode, 'to', newMode)
+            return newMode
+          })
+        }
       }
       // Space: Process image
       else if (e.key === ' ' && !isProcessing && hasUnsavedChanges) {
         e.preventDefault()
         handleProcess()
       }
+      // Ctrl/Cmd + Z: Undo (restore previous)
+      else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        e.preventDefault()
+        console.log('[DEBUG] Undo triggered')
+        
+        // Find the next item in history
+        if (imageHistory.length > 0) {
+          const currentIndex = 0 // Since we always add to the beginning
+          const nextItem = imageHistory[currentIndex]
+          if (nextItem) {
+            handleRestoreFromHistory(nextItem)
+          }
+        }
+      }
+      // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y: Redo
+      else if (((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) || 
+               ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault()
+        console.log('[DEBUG] Redo triggered')
+        
+        // For now, just restore the most recent if available
+        if (imageHistory.length > 1) {
+          handleRestoreFromHistory(imageHistory[1])
+        }
+      }
     }
     
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [previousImageData, isProcessing, hasUnsavedChanges, handleProcess])
+  }, [isProcessing, hasUnsavedChanges, handleProcess, imageHistory, handleRestoreFromHistory])
 
   return (
     <div className="h-full flex" data-testid="editor-container">
@@ -251,6 +321,15 @@ export default function EditorPage() {
           imageWidth={metadata?.width || 6000}
           imageHeight={metadata?.height || 4000}
         />
+        
+        {/* Image History */}
+        <div className="border-t border-gray-700">
+          <ImageHistory
+            history={imageHistory}
+            onRestore={handleRestoreFromHistory}
+            currentImageData={imageData}
+          />
+        </div>
       </aside>
       
       {/* Debug info for development */}
