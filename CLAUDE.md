@@ -6,6 +6,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a WebAssembly port of LibRaw, a C++ library for reading and processing RAW image files from digital cameras. The project enables high-performance RAW image processing directly in web browsers and Node.js environments.
 
+## Development Practices
+
+### Testing Philosophy
+- **Unit tests are the primary testing method** - Focus on comprehensive unit test coverage for all features
+- **Always run all tests before committing** - Ensure `npm test` passes in both LibRaw and app directories
+- E2E tests (Playwright) are supplementary and may require system dependencies
+- Write tests for new features before or alongside implementation
+
+### Code Quality
+- **Perform regular refactoring** - Periodically review the entire codebase for improvements
+- Look for opportunities to:
+  - Reduce code duplication
+  - Improve type safety
+  - Enhance performance
+  - Simplify complex logic
+  - Update deprecated patterns
+- Keep components focused and single-purpose
+- Maintain consistent coding style throughout the project
+
+### Commit Practices
+- Run all tests before committing: `npm test` in both directories
+- Use descriptive commit messages following conventional commits format
+- Commit frequently with logical, atomic changes
+- If tests fail, fix them before committing
+
 ## Build Commands
 
 ### Prerequisites
@@ -49,6 +74,15 @@ npm run dev             # Starts at http://localhost:3000
 # Production build
 npm run build
 npm run start
+
+# Unit tests (Vitest)
+npm test                # Run all unit tests
+npm run test:ui         # Run tests with UI
+npm run test:coverage   # Run tests with coverage report
+
+# E2E tests (Playwright)
+npm run test:e2e        # Run e2e tests headless
+npm run test:e2e:headed # Run e2e tests with browser UI
 
 # Linting and type checking
 npm run lint
