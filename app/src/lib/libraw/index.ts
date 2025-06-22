@@ -41,6 +41,8 @@ interface LibRawInstance {
   setOutputBPS(bps: number): void
   setUserBlack(level: number): void
   setAberrationCorrection(r: number, b: number): void
+  setSaturation?(saturation: number): void
+  setVibrance?(vibrance: number): void
   
   // Advanced methods (optional for backward compatibility)
   setShotSelect?(shot: number): void
@@ -229,6 +231,15 @@ export class LibRawWASM implements LibRawProcessor {
     
     if (params.outputTiff !== undefined && typeof this.instance.setOutputTiff === 'function') {
       this.instance.setOutputTiff(params.outputTiff)
+    }
+    
+    // Color adjustments
+    if (params.saturation !== undefined && typeof this.instance.setSaturation === 'function') {
+      this.instance.setSaturation(params.saturation)
+    }
+    
+    if (params.vibrance !== undefined && typeof this.instance.setVibrance === 'function') {
+      this.instance.setVibrance(params.vibrance)
     }
 
     // Process the image

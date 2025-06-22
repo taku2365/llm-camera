@@ -33,7 +33,10 @@ function mapEditToProcessParams(editParams: EditParams): ProcessParams {
   
   return {
     useCameraWB: !customWB, // Use camera WB if no custom WB
-    outputColor: 1, // sRGB
+    // Saturation affects output color space
+    outputColor: editParams.saturation > 50 ? 2 : // Adobe RGB for more saturation
+                 editParams.saturation < -50 ? 0 : // Raw color for less
+                 1, // sRGB for normal
     brightness: 1.0 + (editParams.exposure / 5), // Map -5 to +5 -> 0 to 2
     quality: 3, // AHD interpolation
     halfSize: false,
@@ -60,12 +63,6 @@ function mapEditToProcessParams(editParams: EditParams): ProcessParams {
       Math.max(0, 128 + editParams.blacks * 1.28) : // Map -100 to +100 -> 0 to 256
       undefined,
     
-    // Vibrance/saturation (LibRaw doesn't have direct saturation control, 
-    // but we can use color space for subtle effect)
-    outputColor: editParams.saturation > 50 ? 2 : // Adobe RGB for more saturation
-                 editParams.saturation < -50 ? 0 : // Raw color for less
-                 1, // sRGB for normal
-    
     // Custom white balance from temperature/tint
     customWB,
     
@@ -84,6 +81,10 @@ function mapEditToProcessParams(editParams: EditParams): ProcessParams {
     dcbIterations: editParams.dcbIterations,
     dcbEnhance: editParams.dcbEnhance,
     outputBPS: editParams.outputBPS,
+    
+    // Color adjustments
+    saturation: editParams.saturation,
+    vibrance: editParams.vibrance,
   }
 }
 
@@ -116,7 +117,7 @@ export function useLibRaw(): UseLibRawReturn {
       
       // Try to extract thumbnail
       try {
-        const thumbnailData = clientRef.current.getThumbnail()
+        const thumbnailData = await clientRef.current.getThumbnail()
         if (thumbnailData && thumbnailData.format === 'jpeg') {
           // Convert thumbnail to data URL
           const blob = new Blob([thumbnailData.data], { type: 'image/jpeg' })

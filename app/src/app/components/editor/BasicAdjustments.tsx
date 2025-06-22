@@ -123,7 +123,21 @@ export default function BasicAdjustments({ params, onChange }: BasicAdjustmentsP
       </div>
 
       <div className="border-t border-gray-700 pt-6">
-        <button className="w-full py-2 px-4 bg-gray-700 text-white rounded hover:bg-gray-600 transition">
+        <button 
+          onClick={() => {
+            onChange("exposure", 0)
+            onChange("contrast", 0)
+            onChange("highlights", 0)
+            onChange("shadows", 0)
+            onChange("whites", 0)
+            onChange("blacks", 0)
+            onChange("temperature", 0)
+            onChange("tint", 0)
+            onChange("vibrance", 0)
+            onChange("saturation", 0)
+          }}
+          className="w-full py-2 px-4 bg-gray-700 text-white rounded hover:bg-gray-600 transition"
+        >
           Reset All
         </button>
       </div>

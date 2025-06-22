@@ -118,6 +118,10 @@ export interface ProcessParams {
   userFlip?: number        // Rotation/flip: 0=none, 3=180, 5=90CCW, 6=90CW
   noAutoBright?: boolean   // Disable auto brightness
   outputTiff?: boolean     // Output TIFF instead of PPM
+  
+  // Color adjustments
+  saturation?: number      // -100 to +100
+  vibrance?: number        // -100 to +100
 }
 
 // 4-channel RAW data
@@ -157,13 +161,13 @@ export interface LibRawProcessor {
 
 // Worker message types
 export interface WorkerMessage {
-  type: 'load' | 'process' | 'dispose'
+  type: 'load' | 'process' | 'dispose' | 'get-thumbnail'
   id: string
   data?: any
 }
 
 export interface WorkerResponse {
-  type: 'loaded' | 'processed' | 'disposed' | 'error'
+  type: 'loaded' | 'processed' | 'disposed' | 'error' | 'thumbnail'
   id: string
   data?: any
   error?: string

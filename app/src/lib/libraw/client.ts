@@ -4,6 +4,7 @@ import {
   ProcessParams, 
   ProcessedImage, 
   PhotoMetadata,
+  ThumbnailData,
   WorkerMessage,
   WorkerResponse 
 } from "@/lib/types"
@@ -95,6 +96,10 @@ export class LibRawClient {
     // Reconstruct ImageData from transferred buffer
     const data = new Uint8ClampedArray(result.data)
     return new ImageData(data, result.width, result.height)
+  }
+  
+  async getThumbnail(): Promise<ThumbnailData | null> {
+    return this.sendMessage("get-thumbnail")
   }
 
   async dispose(): Promise<void> {

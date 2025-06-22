@@ -55,6 +55,23 @@ self.addEventListener("message", async (event: MessageEvent<WorkerMessage>) => {
         break
       }
 
+      case "get-thumbnail": {
+        if (!processor) {
+          throw new Error("Processor not initialized")
+        }
+        
+        // Get thumbnail data
+        const thumbnailData = processor.getThumbnail()
+        
+        const response: WorkerResponse = {
+          type: "thumbnail",
+          id,
+          data: thumbnailData,
+        }
+        self.postMessage(response)
+        break
+      }
+
       case "dispose": {
         if (processor) {
           processor.dispose()

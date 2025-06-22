@@ -116,7 +116,7 @@ export default function EditorPage() {
                   : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
               }`}
             >
-              {isProcessing ? '現像中...' : hasUnsavedChanges ? '現像 (変更あり)' : '現像'}
+              {isProcessing ? 'Processing...' : hasUnsavedChanges ? 'Process (unsaved)' : 'Process'}
               {hasUnsavedChanges && !isProcessing && (
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-pulse" />
               )}
