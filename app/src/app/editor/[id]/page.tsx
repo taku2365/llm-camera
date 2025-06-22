@@ -44,8 +44,9 @@ export default function EditorPage() {
   })
   
   const { loadFile, process, imageData, metadata, thumbnail, isLoading, isProcessing, error } = useLibRaw()
-  const processTimeoutRef = useRef<NodeJS.Timeout>()
   const loadedFileRef = useRef<File | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [lastProcessedParams, setLastProcessedParams] = useState<EditParams | null>(null)
 
   // Load the RAW file when component mounts
   useEffect(() => {
@@ -62,26 +63,20 @@ export default function EditorPage() {
     }
   }, [photo, loadFile, router])
 
-  // Debounced processing when parameters change
+  // Manual processing function
+  const handleProcess = () => {
+    if (!photo?.file || isLoading || isProcessing) return
+    process(editParams)
+    setLastProcessedParams(editParams)
+    setHasUnsavedChanges(false)
+  }
+  
+  // Check if parameters have changed
   useEffect(() => {
-    if (!photo?.file || isLoading) return
-
-    // Clear existing timeout
-    if (processTimeoutRef.current) {
-      clearTimeout(processTimeoutRef.current)
+    if (lastProcessedParams && JSON.stringify(editParams) !== JSON.stringify(lastProcessedParams)) {
+      setHasUnsavedChanges(true)
     }
-
-    // Debounce processing by 300ms
-    processTimeoutRef.current = setTimeout(() => {
-      process(editParams)
-    }, 300)
-
-    return () => {
-      if (processTimeoutRef.current) {
-        clearTimeout(processTimeoutRef.current)
-      }
-    }
-  }, [editParams, photo, process, isLoading])
+  }, [editParams, lastProcessedParams])
 
   // Update crop area when metadata is loaded
   useEffect(() => {
@@ -104,9 +99,29 @@ export default function EditorPage() {
     <div className="h-full flex">
       {/* Main viewing area */}
       <div className="flex-1 flex flex-col bg-gray-900">
-        {/* Histogram */}
-        <div className="h-24 px-4 py-2 bg-gray-800 border-b border-gray-700">
-          <Histogram imageData={imageData} />
+        {/* Histogram and Process Button */}
+        <div className="h-32 bg-gray-800 border-b border-gray-700">
+          <div className="h-24 px-4 py-2">
+            <Histogram imageData={imageData} />
+          </div>
+          <div className="px-4 pb-2 flex justify-end">
+            <button
+              onClick={handleProcess}
+              disabled={isProcessing || isLoading || !photo?.file}
+              className={`px-6 py-2 rounded font-medium transition-colors relative ${
+                isProcessing || isLoading || !photo?.file
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : hasUnsavedChanges
+                  ? 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
+              }`}
+            >
+              {isProcessing ? '現像中...' : hasUnsavedChanges ? '現像 (変更あり)' : '現像'}
+              {hasUnsavedChanges && !isProcessing && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-pulse" />
+              )}
+            </button>
+          </div>
         </div>
         
         {/* Image viewer */}

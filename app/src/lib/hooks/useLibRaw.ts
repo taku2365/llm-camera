@@ -130,30 +130,8 @@ export function useLibRaw(): UseLibRawReturn {
       fileLoadedRef.current = true
       currentFileRef.current = file
       
-      // Process with default parameters
-      const processParams = mapEditToProcessParams({
-        exposure: 0,
-        contrast: 0,
-        highlights: 0,
-        shadows: 0,
-        whites: 0,
-        blacks: 0,
-        temperature: 0,
-        tint: 0,
-        vibrance: 0,
-        saturation: 0,
-        cropEnabled: false,
-        userFlip: 0,
-        shotSelect: 0,
-        noiseThreshold: 100,
-        medianPasses: 0,
-        dcbIterations: 2,
-        dcbEnhance: false,
-        outputBPS: 8,
-      })
-      
-      const data = await clientRef.current.process(processParams)
-      setImageData(data)
+      // Don't process automatically - wait for manual trigger
+      // Just show the thumbnail until user clicks Process
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load file")
       console.error("Failed to load RAW file:", err)
