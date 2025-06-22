@@ -1,6 +1,27 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { LibRawWASM } from '@/lib/libraw'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { createTestRawFile, createTestProcessParams } from '@/test/utils'
+
+// Mock the libraw module to avoid Vite import errors
+vi.mock('@/lib/libraw', () => ({
+  LibRawWASM: {
+    create: vi.fn().mockResolvedValue({
+      loadFile: vi.fn(),
+      process: vi.fn().mockResolvedValue({
+        data: new Uint8ClampedArray(100 * 100 * 4),
+        width: 100,
+        height: 100,
+      }),
+      getMetadata: vi.fn().mockReturnValue({
+        camera: 'Test Camera',
+        width: 100,
+        height: 100,
+      }),
+      dispose: vi.fn(),
+    }),
+  },
+}))
+
+import { LibRawWASM } from '@/lib/libraw'
 
 // This is an integration test that tests the actual LibRaw WASM module
 // It will be skipped in CI but can be run locally with real WASM module

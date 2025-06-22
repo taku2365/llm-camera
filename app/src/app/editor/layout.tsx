@@ -16,7 +16,7 @@ export default function EditorLayout({
       <header className="bg-gray-800 border-b border-gray-700 px-4 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <a href="/" className="text-gray-400 hover:text-white transition">
+            <a href="/library" className="text-gray-400 hover:text-white transition">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>

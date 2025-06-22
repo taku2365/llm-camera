@@ -4,26 +4,29 @@ import { useLibRaw } from './useLibRaw'
 import { createTestEditParams } from '@/test/utils'
 
 // Mock the LibRaw client
+let mockClient: any
+
 vi.mock('@/lib/libraw/client', () => ({
-  getLibRawClient: () => ({
-    loadFile: vi.fn().mockResolvedValue({
-      camera: 'Test Camera',
-      iso: 100,
-      aperture: 2.8,
-      shutterSpeed: '1/100',
-      focalLength: 50,
-      date: new Date(),
-      width: 100,
-      height: 100,
-    }),
-    process: vi.fn().mockResolvedValue(new ImageData(100, 100)),
-    dispose: vi.fn(),
-  }),
+  getLibRawClient: () => mockClient,
 }))
 
 describe('useLibRaw', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockClient = {
+      loadFile: vi.fn().mockResolvedValue({
+        camera: 'Test Camera',
+        iso: 100,
+        aperture: 2.8,
+        shutterSpeed: '1/100',
+        focalLength: 50,
+        date: new Date(),
+        width: 100,
+        height: 100,
+      }),
+      process: vi.fn().mockResolvedValue(new ImageData(100, 100)),
+      dispose: vi.fn(),
+    }
   })
 
   it('should initialize with null state', () => {
@@ -53,11 +56,9 @@ describe('useLibRaw', () => {
   })
 
   it('should handle loading errors', async () => {
-    const { result } = renderHook(() => useLibRaw())
+    mockClient.loadFile.mockRejectedValueOnce(new Error('Failed to load'))
     
-    // Mock error
-    const mockClient = await import('@/lib/libraw/client')
-    vi.mocked(mockClient.getLibRawClient().loadFile).mockRejectedValueOnce(new Error('Failed to load'))
+    const { result } = renderHook(() => useLibRaw())
     
     const testFile = new File(['test'], 'test.arw', { type: 'image/x-sony-arw' })
     
@@ -65,10 +66,8 @@ describe('useLibRaw', () => {
       await result.current.loadFile(testFile)
     })
     
-    await waitFor(() => {
-      expect(result.current.error).toBe('Failed to load')
-      expect(result.current.isLoading).toBe(false)
-    })
+    expect(result.current.error).toBe('Failed to load')
+    expect(result.current.isLoading).toBe(false)
   })
 
   it('should process with new parameters', async () => {
@@ -106,7 +105,6 @@ describe('useLibRaw', () => {
   })
 
   it('should dispose on unmount', () => {
-    const mockClient = vi.mocked((global as any).getLibRawClient())
     const { unmount } = renderHook(() => useLibRaw())
     
     unmount()

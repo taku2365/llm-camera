@@ -1,7 +1,7 @@
-import { WorkerMessage, WorkerResponse, ProcessParams } from "@/lib/types"
-import { LibRawWASM } from "./index"
+import { WorkerMessage, WorkerResponse, ProcessParams, LibRawProcessor } from "@/lib/types"
+import { createProcessor } from "./processor-factory"
 
-let processor: LibRawWASM | null = null
+let processor: LibRawProcessor | null = null
 
 // Handle messages from main thread
 self.addEventListener("message", async (event: MessageEvent<WorkerMessage>) => {
@@ -12,7 +12,7 @@ self.addEventListener("message", async (event: MessageEvent<WorkerMessage>) => {
       case "load": {
         // Initialize processor if needed
         if (!processor) {
-          processor = await LibRawWASM.create()
+          processor = await createProcessor()
         }
         
         // Load the file

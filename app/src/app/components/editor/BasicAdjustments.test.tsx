@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import BasicAdjustments from './BasicAdjustments'
 import { createTestEditParams } from '@/test/utils'
@@ -47,17 +47,15 @@ describe('BasicAdjustments', () => {
   })
 
   it('should call onChange when slider value changes', async () => {
-    const user = userEvent.setup()
     const params = createTestEditParams()
     
-    render(<BasicAdjustments params={params} onChange={mockOnChange} />)
+    const { container } = render(<BasicAdjustments params={params} onChange={mockOnChange} />)
     
-    // Find exposure slider by its label
-    const exposureSlider = screen.getByLabelText('Exposure')
+    // Find exposure slider - it's the first range input
+    const exposureSlider = container.querySelector('input[type="range"]') as HTMLInputElement
     
     // Change value
-    await user.clear(exposureSlider)
-    await user.type(exposureSlider, '2')
+    fireEvent.change(exposureSlider, { target: { value: '2' } })
     
     expect(mockOnChange).toHaveBeenCalledWith('exposure', 2)
   })
