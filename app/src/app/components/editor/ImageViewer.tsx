@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 
 interface ImageViewerProps {
   imageData: ImageData | null
   previousImageData?: ImageData | null
+  currentComparisonData?: ImageData | null
   showComparison?: boolean
   comparisonMode?: 'slider' | 'side-by-side'
   isProcessing: boolean
@@ -13,56 +14,101 @@ interface ImageViewerProps {
 export default function ImageViewer({ 
   imageData, 
   previousImageData,
+  currentComparisonData,
   showComparison = false,
   comparisonMode = 'slider',
   isProcessing 
 }: ImageViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const previousCanvasRef = useRef<HTMLCanvasElement>(null)
+  const comparisonCanvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [sliderPosition, setSliderPosition] = useState(50) // For slider comparison
-
-  useEffect(() => {
-    if (!canvasRef.current || !imageData) return
-    
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-    
-    // Set canvas size to match image
-    canvas.width = imageData.width
-    canvas.height = imageData.height
-    
-    // Draw image data
-    ctx.putImageData(imageData, 0, 0)
-  }, [imageData])
   
-  // Draw previous image for comparison
-  useEffect(() => {
-    if (!previousCanvasRef.current || !previousImageData) return
+  // Use currentComparisonData for "after" image if available, otherwise use imageData
+  const afterImageData = currentComparisonData || imageData
+  
+  // Helper function to draw image data to canvas
+  const drawToCanvas = useCallback((canvas: HTMLCanvasElement | null, data: ImageData | null) => {
+    if (!canvas || !data) return
     
-    const canvas = previousCanvasRef.current
     const ctx = canvas.getContext("2d")
     if (!ctx) return
     
     // Set canvas size to match image
-    canvas.width = previousImageData.width
-    canvas.height = previousImageData.height
+    canvas.width = data.width
+    canvas.height = data.height
     
     // Draw image data
-    ctx.putImageData(previousImageData, 0, 0)
-  }, [previousImageData])
+    ctx.putImageData(data, 0, 0)
+  }, [])
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? 0.9 : 1.1
-    const newZoom = Math.max(0.1, Math.min(5, zoom * delta))
-    setZoom(newZoom)
-  }
+  // Callback refs that draw when canvas is attached
+  const mainCanvasCallback = useCallback((canvas: HTMLCanvasElement | null) => {
+    canvasRef.current = canvas
+    drawToCanvas(canvas, afterImageData)
+  }, [afterImageData, drawToCanvas])
+  
+  const previousCanvasCallback = useCallback((canvas: HTMLCanvasElement | null) => {
+    previousCanvasRef.current = canvas
+    drawToCanvas(canvas, previousImageData || null)
+  }, [previousImageData, drawToCanvas])
+  
+  const comparisonCanvasCallback = useCallback((canvas: HTMLCanvasElement | null) => {
+    comparisonCanvasRef.current = canvas
+    drawToCanvas(canvas, currentComparisonData || null)
+  }, [currentComparisonData, drawToCanvas])
+
+  // Re-draw when data changes
+  useEffect(() => {
+    drawToCanvas(canvasRef.current, afterImageData)
+  }, [afterImageData, drawToCanvas])
+  
+  // Re-draw previous image when data changes
+  useEffect(() => {
+    drawToCanvas(previousCanvasRef.current, previousImageData)
+  }, [previousImageData, drawToCanvas])
+  
+  // Re-draw comparison image when data changes
+  useEffect(() => {
+    drawToCanvas(comparisonCanvasRef.current, currentComparisonData)
+  }, [currentComparisonData, drawToCanvas])
+  
+  // Auto-fit when switching to side-by-side mode
+  useEffect(() => {
+    if (showComparison && comparisonMode === 'side-by-side') {
+      // Reset zoom and pan when switching modes
+      setZoom(1)
+      setPan({ x: 0, y: 0 })
+      // Delay to ensure DOM is updated
+      setTimeout(() => {
+        fitToView()
+      }, 100)
+    }
+  }, [showComparison, comparisonMode])
+
+  // Handle wheel events with native listener to prevent passive event issues
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? 0.9 : 1.1
+      setZoom(prevZoom => Math.max(0.1, Math.min(5, prevZoom * delta)))
+    }
+
+    // Add non-passive wheel event listener
+    container.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel)
+    }
+  }, [])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
@@ -79,31 +125,47 @@ export default function ImageViewer({
   }
 
   const fitToView = () => {
-    if (!containerRef.current || !imageData) return
+    if (!containerRef.current) return
     
     const container = containerRef.current
     const containerWidth = container.clientWidth
     const containerHeight = container.clientHeight
     
-    const imageAspect = imageData.width / imageData.height
-    const containerAspect = containerWidth / containerHeight
-    
-    let newZoom
-    if (imageAspect > containerAspect) {
-      newZoom = containerWidth / imageData.width
-    } else {
-      newZoom = containerHeight / imageData.height
+    if (showComparison && comparisonMode === 'side-by-side' && previousImageData) {
+      // For side-by-side, fit both images
+      const rightImage = currentComparisonData || imageData
+      if (!rightImage) return
+      
+      const totalWidth = rightImage.width + previousImageData.width + 20 // 20px gap
+      const maxHeight = Math.max(rightImage.height, previousImageData.height)
+      
+      const widthRatio = containerWidth / totalWidth
+      const heightRatio = containerHeight / maxHeight
+      
+      const newZoom = Math.min(widthRatio, heightRatio) * 0.9 // 90% to add padding
+      setZoom(newZoom)
+      setPan({ x: 0, y: 0 })
+    } else if (afterImageData) {
+      // Single image fit
+      const imageAspect = afterImageData.width / afterImageData.height
+      const containerAspect = containerWidth / containerHeight
+      
+      let newZoom
+      if (imageAspect > containerAspect) {
+        newZoom = containerWidth / afterImageData.width
+      } else {
+        newZoom = containerHeight / afterImageData.height
+      }
+      
+      setZoom(newZoom * 0.9) // 90% to add some padding
+      setPan({ x: 0, y: 0 })
     }
-    
-    setZoom(newZoom * 0.9) // 90% to add some padding
-    setPan({ x: 0, y: 0 })
   }
 
   return (
     <div 
       ref={containerRef}
       className="relative w-full h-full bg-gray-950 overflow-hidden cursor-move"
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -118,7 +180,7 @@ export default function ImageViewer({
         </div>
       )}
       
-      {!imageData && !isProcessing && (
+      {!afterImageData && !isProcessing && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
             <svg className="w-24 h-24 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,10 +193,10 @@ export default function ImageViewer({
         </div>
       )}
       
-      {showComparison && previousImageData && comparisonMode === 'side-by-side' ? (
+      {showComparison && previousImageData && (currentComparisonData || imageData) && comparisonMode === 'side-by-side' ? (
         // Side-by-side comparison
         <div
-          className="absolute inset-0 flex items-center justify-center"
+          className="absolute inset-0 flex items-center justify-center z-10"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px)`,
           }}
@@ -142,9 +204,11 @@ export default function ImageViewer({
           <div className="flex gap-4">
             <div className="relative">
               <canvas
-                ref={previousCanvasRef}
-                className="shadow-2xl"
+                ref={previousCanvasCallback}
+                className="shadow-2xl block"
                 style={{
+                  width: previousImageData ? `${previousImageData.width}px` : 'auto',
+                  height: previousImageData ? `${previousImageData.height}px` : 'auto',
                   transform: `scale(${zoom})`,
                   transformOrigin: "center",
                   imageRendering: zoom > 1.5 ? "pixelated" : "auto",
@@ -156,9 +220,11 @@ export default function ImageViewer({
             </div>
             <div className="relative">
               <canvas
-                ref={canvasRef}
-                className="shadow-2xl"
+                ref={currentComparisonData ? comparisonCanvasCallback : mainCanvasCallback}
+                className="shadow-2xl block"
                 style={{
+                  width: afterImageData ? `${afterImageData.width}px` : 'auto',
+                  height: afterImageData ? `${afterImageData.height}px` : 'auto',
                   transform: `scale(${zoom})`,
                   transformOrigin: "center",
                   imageRendering: zoom > 1.5 ? "pixelated" : "auto",
@@ -181,9 +247,11 @@ export default function ImageViewer({
           <div className="relative" style={{ transform: `scale(${zoom})`, transformOrigin: "center" }}>
             {/* Previous (full) */}
             <canvas
-              ref={previousCanvasRef}
-              className="shadow-2xl"
+              ref={previousCanvasCallback}
+              className="shadow-2xl block"
               style={{
+                width: previousImageData ? `${previousImageData.width}px` : 'auto',
+                height: previousImageData ? `${previousImageData.height}px` : 'auto',
                 imageRendering: zoom > 1.5 ? "pixelated" : "auto",
               }}
             />
@@ -193,9 +261,11 @@ export default function ImageViewer({
               style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
             >
               <canvas
-                ref={canvasRef}
-                className="shadow-2xl"
+                ref={currentComparisonData ? comparisonCanvasCallback : mainCanvasCallback}
+                className="shadow-2xl block"
                 style={{
+                  width: afterImageData ? `${afterImageData.width}px` : 'auto',
+                  height: afterImageData ? `${afterImageData.height}px` : 'auto',
                   imageRendering: zoom > 1.5 ? "pixelated" : "auto",
                 }}
               />
@@ -205,8 +275,10 @@ export default function ImageViewer({
               className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize"
               style={{ left: `${sliderPosition}%` }}
               onMouseDown={(e) => {
+                e.stopPropagation() // Prevent pan/zoom when dragging slider
                 const rect = e.currentTarget.parentElement!.getBoundingClientRect()
                 const handleDrag = (e: MouseEvent) => {
+                  e.preventDefault()
                   const x = e.clientX - rect.left
                   const percent = (x / rect.width) * 100
                   setSliderPosition(Math.max(0, Math.min(100, percent)))
@@ -227,7 +299,7 @@ export default function ImageViewer({
             </div>
           </div>
         </div>
-      ) : (
+      ) : afterImageData ? (
         // Normal view
         <div
           className="absolute inset-0 flex items-center justify-center"
@@ -236,19 +308,22 @@ export default function ImageViewer({
           }}
         >
           <canvas
-            ref={canvasRef}
-            className="shadow-2xl"
+            ref={mainCanvasCallback}
+            className="shadow-2xl block"
             style={{
+              width: afterImageData ? `${afterImageData.width}px` : 'auto',
+              height: afterImageData ? `${afterImageData.height}px` : 'auto',
               transform: `scale(${zoom})`,
               transformOrigin: "center",
               imageRendering: zoom > 1.5 ? "pixelated" : "auto",
             }}
           />
         </div>
-      )}
+      ) : null}
       
       {/* Zoom controls */}
-      <div className="absolute bottom-4 right-4 flex items-center space-x-2 bg-gray-800 bg-opacity-80 rounded-lg p-2">
+      {afterImageData && (
+        <div className="absolute bottom-4 right-4 flex items-center space-x-2 bg-gray-800 bg-opacity-80 rounded-lg p-2">
         <button
           onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}
           className="w-8 h-8 text-white hover:bg-gray-700 rounded flex items-center justify-center"
@@ -274,6 +349,7 @@ export default function ImageViewer({
           </svg>
         </button>
       </div>
+      )}
     </div>
   )
 }

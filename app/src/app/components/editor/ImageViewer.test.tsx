@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ImageViewer from './ImageViewer'
 import { createTestImageData } from '@/test/utils'
@@ -14,17 +14,21 @@ describe('ImageViewer', () => {
   it('should render empty state', () => {
     render(<ImageViewer imageData={null} isProcessing={false} />)
     
-    expect(screen.getByText('No image loaded')).toBeInTheDocument()
+    expect(screen.getByText('To display the image')).toBeInTheDocument()
   })
 
-  it('should render image when data provided', () => {
+  it('should render image when data provided', async () => {
     const testImageData = createTestImageData(200, 150)
     const { container } = render(<ImageViewer imageData={testImageData} isProcessing={false} />)
     
     const canvas = container.querySelector('canvas')
     expect(canvas).toBeInTheDocument()
-    expect(canvas).toHaveAttribute('width', '200')
-    expect(canvas).toHaveAttribute('height', '150')
+    
+    // Wait for canvas to be drawn
+    await waitFor(() => {
+      expect(canvas).toHaveAttribute('width', '200')
+      expect(canvas).toHaveAttribute('height', '150')
+    })
   })
 
   it('should handle zoom controls', async () => {

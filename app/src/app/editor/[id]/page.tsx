@@ -8,9 +8,11 @@ import BasicAdjustments from "@/app/components/editor/BasicAdjustments"
 import AdvancedAdjustments from "@/app/components/editor/AdvancedAdjustments"
 import ComparisonDebugger from "@/app/components/editor/ComparisonDebugger"
 import ImageHistory from "@/app/components/editor/ImageHistory"
+import ComparisonControls from "@/app/components/editor/ComparisonControls"
 import { EditParams } from "@/lib/types"
 import { usePhotosStore } from "@/lib/store/photos"
 import { useLibRaw } from "@/lib/hooks/useLibRaw"
+import { imageDataToJpeg, jpegToImageData } from "@/lib/utils/image-utils"
 
 export default function EditorPage() {
   const { id } = useParams() as { id: string }
@@ -50,11 +52,13 @@ export default function EditorPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [lastProcessedParams, setLastProcessedParams] = useState<EditParams | null>(null)
   const [previousImageData, setPreviousImageData] = useState<ImageData | null>(null)
+  const [currentComparisonData, setCurrentComparisonData] = useState<ImageData | null>(null)
   const [showComparison, setShowComparison] = useState(false)
   const [comparisonMode, setComparisonMode] = useState<'slider' | 'side-by-side'>('slider')
   const [imageHistory, setImageHistory] = useState<Array<{
     id: string
-    imageData: ImageData
+    imageData: ImageData | null
+    jpegDataUrl: string | null
     params: EditParams
     timestamp: Date
   }>>([])
@@ -88,7 +92,7 @@ export default function EditorPage() {
   }, [photo, loadFile, router])
 
   // Manual processing function
-  const handleProcess = useCallback(() => {
+  const handleProcess = useCallback(async () => {
     if (!photo?.file || isLoading || isProcessing) return
     
     // Store current image as previous before processing new one
@@ -96,16 +100,24 @@ export default function EditorPage() {
       setPreviousImageData(imageData)
       setShowComparison(true)
       
-      // Add to history (keep last 10 images)
-      setImageHistory(prev => {
-        const newHistory = [{
-          id: Date.now().toString(),
-          imageData: imageData,
-          params: lastProcessedParams || editParams,
-          timestamp: new Date()
-        }, ...prev].slice(0, 10)
-        return newHistory
-      })
+      // Convert to JPEG for history caching
+      try {
+        const jpegDataUrl = await imageDataToJpeg(imageData)
+        
+        // Add to history (keep last 10 images)
+        setImageHistory(prev => {
+          const newHistory = [{
+            id: Date.now().toString(),
+            imageData: null, // Don't store raw ImageData
+            jpegDataUrl: jpegDataUrl,
+            params: lastProcessedParams || editParams,
+            timestamp: new Date()
+          }, ...prev].slice(0, 10)
+          return newHistory
+        })
+      } catch (err) {
+        console.error('Failed to cache image as JPEG:', err)
+      }
     }
     
     process(editParams)
@@ -129,6 +141,13 @@ export default function EditorPage() {
       }))
     }
   }, [metadata, editParams.cropArea])
+  
+  // Clear currentComparisonData when comparison is turned off
+  useEffect(() => {
+    if (!showComparison) {
+      setCurrentComparisonData(null)
+    }
+  }, [showComparison])
 
   const handleParamChange = (param: keyof EditParams, value: any) => {
     setEditParams(prev => ({
@@ -138,13 +157,14 @@ export default function EditorPage() {
   }
   
   // Restore from history
-  const handleRestoreFromHistory = useCallback((item: {
+  const handleRestoreFromHistory = useCallback(async (item: {
     id: string
-    imageData: ImageData
+    imageData: ImageData | null
+    jpegDataUrl: string | null
     params: EditParams
     timestamp: Date
   }) => {
-    // Set the image data directly (this is already processed)
+    // Store current as previous
     if (imageData) {
       setPreviousImageData(imageData)
     }
@@ -154,10 +174,80 @@ export default function EditorPage() {
     setLastProcessedParams(item.params)
     setHasUnsavedChanges(false)
     
-    // The restored image becomes the current image
-    // We can't set imageData directly, so we need to trigger a process with the restored params
+    // If we have cached JPEG, show it immediately
+    if (item.jpegDataUrl) {
+      try {
+        const restoredImageData = await jpegToImageData(item.jpegDataUrl)
+        // This is a hack to update imageData from useLibRaw hook
+        // We need to trigger process but the image is already what we want
+        // So we'll just update params and let the UI show the cached image
+        setShowComparison(false)
+      } catch (err) {
+        console.error('Failed to restore from JPEG cache:', err)
+      }
+    }
+    
+    // Always trigger process to sync with the restored params
     process(item.params)
   }, [imageData, process])
+  
+  // Compare with history item
+  const handleCompareWithHistory = useCallback(async (item: {
+    id: string
+    imageData: ImageData | null
+    jpegDataUrl: string | null
+    params: EditParams
+    timestamp: Date
+  }) => {
+    // Convert JPEG back to ImageData for comparison
+    if (item.jpegDataUrl) {
+      try {
+        const restoredImageData = await jpegToImageData(item.jpegDataUrl)
+        setPreviousImageData(restoredImageData)
+        setShowComparison(true)
+      } catch (err) {
+        console.error('Failed to restore image from JPEG:', err)
+      }
+    }
+  }, [])
+  
+  // Compare two history items
+  const handleCompareTwoItems = useCallback(async (item1: {
+    id: string
+    imageData: ImageData | null
+    jpegDataUrl: string | null
+    params: EditParams
+    timestamp: Date
+  }, item2: {
+    id: string
+    imageData: ImageData | null
+    jpegDataUrl: string | null
+    params: EditParams
+    timestamp: Date
+  }) => {
+    try {
+      if (item1.jpegDataUrl && item2.jpegDataUrl) {
+        // Convert both JPEGs to ImageData without triggering processing
+        const [imageData1, imageData2] = await Promise.all([
+          jpegToImageData(item1.jpegDataUrl),
+          jpegToImageData(item2.jpegDataUrl)
+        ])
+        
+        // Set both images for comparison without processing
+        setPreviousImageData(imageData1)
+        setCurrentComparisonData(imageData2)
+        setShowComparison(true)
+        setComparisonMode('side-by-side')
+        
+        // Update params to match item2 without processing
+        setEditParams(item2.params)
+        setLastProcessedParams(item2.params)
+        setHasUnsavedChanges(false)
+      }
+    } catch (err) {
+      console.error('Failed to compare two history items:', err)
+    }
+  }, [])
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -167,37 +257,8 @@ export default function EditorPage() {
         return
       }
       
-      // Convert to lowercase to handle caps lock
-      const key = e.key.toLowerCase()
-      
-      // C key: Toggle comparison
-      if (key === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-        e.preventDefault()
-        console.log('[DEBUG] C key pressed, previousImage exists:', !!previousImageDataRef.current)
-        
-        // Only toggle if we have a previous image
-        if (previousImageDataRef.current) {
-          const newShowComparison = !showComparisonRef.current
-          console.log('[DEBUG] Toggling comparison from', showComparisonRef.current, 'to', newShowComparison)
-          setShowComparison(newShowComparison)
-        }
-      }
-      // M key: Change comparison mode
-      else if (key === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-        e.preventDefault()
-        console.log('[DEBUG] M key pressed, showComparison:', showComparisonRef.current)
-        
-        // Only change mode if comparison is currently shown
-        if (showComparisonRef.current && previousImageDataRef.current) {
-          setComparisonMode(mode => {
-            const newMode = mode === 'slider' ? 'side-by-side' : 'slider'
-            console.log('[DEBUG] Changing mode from', mode, 'to', newMode)
-            return newMode
-          })
-        }
-      }
       // Space: Process image
-      else if (e.key === ' ' && !isProcessing && hasUnsavedChanges) {
+      if (e.key === ' ' && !isProcessing && hasUnsavedChanges) {
         e.preventDefault()
         handleProcess()
       }
@@ -266,6 +327,7 @@ export default function EditorPage() {
           <ImageViewer 
             imageData={imageData}
             previousImageData={previousImageData}
+            currentComparisonData={currentComparisonData}
             showComparison={showComparison}
             comparisonMode={comparisonMode}
             isProcessing={isProcessing || isLoading}
@@ -275,12 +337,13 @@ export default function EditorPage() {
               Error: {error}
             </div>
           )}
-          {previousImageData && (
-            <div className="absolute top-4 right-4 bg-black/50 text-white px-3 py-2 rounded text-sm">
-              <div>Press &quot;C&quot; to toggle comparison</div>
-              {showComparison && <div>Press &quot;M&quot; to change mode</div>}
-            </div>
-          )}
+          <ComparisonControls
+            showComparison={showComparison}
+            comparisonMode={comparisonMode}
+            hasComparison={!!previousImageData}
+            onToggleComparison={() => setShowComparison(prev => !prev)}
+            onToggleMode={() => setComparisonMode(prev => prev === 'slider' ? 'side-by-side' : 'slider')}
+          />
         </div>
       </div>
 
@@ -328,12 +391,14 @@ export default function EditorPage() {
             history={imageHistory}
             onRestore={handleRestoreFromHistory}
             currentImageData={imageData}
+            onCompare={handleCompareWithHistory}
+            onCompareTwoItems={handleCompareTwoItems}
           />
         </div>
       </aside>
       
       {/* Debug info for development */}
-      {process.env.NODE_ENV === 'development' && (
+      {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
         <ComparisonDebugger
           showComparison={showComparison}
           comparisonMode={comparisonMode}

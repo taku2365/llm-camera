@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparison Fix Diagram</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: white;
+            line-height: 1.6;
+        }
+        .diagram {
+            background: #2a2a2a;
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        .box {
+            background: #3a3a3a;
+            border: 2px solid #555;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            min-width: 150px;
+        }
+        .box.old {
+            border-color: #ef4444;
+            background: #3a2a2a;
+        }
+        .box.new {
+            border-color: #10b981;
+            background: #2a3a2a;
+        }
+        .arrow {
+            font-size: 24px;
+            color: #666;
+        }
+        .code {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .highlight {
+            background: #10b981;
+            color: black;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        h2 {
+            color: #4a9eff;
+        }
+        .problem {
+            color: #ef4444;
+        }
+        .solution {
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <h1>Side-by-Side Comparison Fix Explained</h1>
+    
+    <div class="diagram">
+        <h2>The Problem</h2>
+        <p class="problem">When clicking "Compare Selected", side-by-side view showed empty screen (両画面ともスクリーンから消える)</p>
+        
+        <div class="flow">
+            <div class="box old">
+                History Item 1<br>
+                <small>jpegDataUrl</small>
+            </div>
+            <div class="arrow">→</div>
+            <div class="box old">
+                Convert to<br>ImageData
+            </div>
+            <div class="arrow">→</div>
+            <div class="box old">
+                Set as<br>previousImageData ✓
+            </div>
+        </div>
+        
+        <div class="flow">
+            <div class="box old">
+                History Item 2<br>
+                <small>jpegDataUrl</small>
+            </div>
+            <div class="arrow">→</div>
+            <div class="box old">
+                Convert to<br>ImageData
+            </div>
+            <div class="arrow">→</div>
+            <div class="box old">
+                ❌ Not stored<br>
+                <small>ImageViewer expects<br>it in imageData</small>
+            </div>
+        </div>
+        
+        <p class="problem">Result: ImageViewer couldn't find the second image to display!</p>
+    </div>
+    
+    <div class="diagram">
+        <h2>The Solution</h2>
+        <p class="solution">Added currentComparisonData state to store the second image</p>
+        
+        <div class="code">
+// In page.tsx
+const [<span class="highlight">currentComparisonData</span>, setCurrentComparisonData] = useState&lt;ImageData | null&gt;(null)
+
+// In handleCompareTwoItems
+setPreviousImageData(imageData1)
+<span class="highlight">setCurrentComparisonData(imageData2)</span>  // NEW: Store second image
+setShowComparison(true)
+setComparisonMode('side-by-side')
+        </div>
+        
+        <div class="code">
+// In ImageViewer.tsx
+interface ImageViewerProps {
+  imageData: ImageData | null
+  previousImageData?: ImageData | null
+  <span class="highlight">currentComparisonData?: ImageData | null</span>  // NEW prop
+  // ...
+}
+
+// Added third canvas ref
+const <span class="highlight">comparisonCanvasRef</span> = useRef&lt;HTMLCanvasElement&gt;(null)
+
+// In side-by-side render
+&lt;canvas
+  ref={<span class="highlight">currentComparisonData ? comparisonCanvasRef : canvasRef</span>}
+  // ...
+/&gt;
+        </div>
+    </div>
+    
+    <div class="diagram">
+        <h2>How It Works Now</h2>
+        
+        <div class="flow">
+            <div class="box new">
+                3 Canvas Elements<br>
+                <small>canvasRef<br>previousCanvasRef<br>comparisonCanvasRef</small>
+            </div>
+            <div class="arrow">→</div>
+            <div class="box new">
+                3 ImageData Sources<br>
+                <small>imageData<br>previousImageData<br>currentComparisonData</small>
+            </div>
+            <div class="arrow">→</div>
+            <div class="box new">
+                Side-by-Side View<br>
+                <small>Left: previousImageData<br>Right: currentComparisonData</small>
+            </div>
+        </div>
+        
+        <p class="solution">✓ Both images display correctly</p>
+        <p class="solution">✓ No processing triggered</p>
+        <p class="solution">✓ Auto-fit works with delay</p>
+        <p class="solution">✓ Synchronized zoom/pan</p>
+    </div>
+    
+    <div class="diagram">
+        <h2>Key Insights</h2>
+        <ul>
+            <li>The original code assumed the second image would always be in <code>imageData</code></li>
+            <li>But when comparing history items, we don't want to overwrite the current <code>imageData</code></li>
+            <li>Solution: Add a separate state <code>currentComparisonData</code> for the second comparison image</li>
+            <li>ImageViewer checks: if <code>currentComparisonData</code> exists, use <code>comparisonCanvasRef</code></li>
+            <li>This preserves the current image while allowing comparison of any two history items</li>
+        </ul>
+    </div>
+</body>
+</html>
