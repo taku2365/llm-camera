@@ -399,7 +399,7 @@ export default function EditorPage() {
       </aside>
       
       {/* Debug info for development */}
-      {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
+      {typeof window !== 'undefined' && typeof process !== 'undefined' && process.env?.NODE_ENV === 'development' && (
         <ComparisonDebugger
           showComparison={historyMode === 'compare' && historySelection.length === 2}
           previousImageData={previousImageData}

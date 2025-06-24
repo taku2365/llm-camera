@@ -10,6 +10,9 @@ vi.mock('@/lib/libraw/client', () => ({
   getLibRawClient: () => mockClient,
 }))
 
+// Mock URL.createObjectURL
+global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+
 describe('useLibRaw', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -26,6 +29,10 @@ describe('useLibRaw', () => {
       }),
       process: vi.fn().mockResolvedValue(new ImageData(100, 100)),
       dispose: vi.fn(),
+      getThumbnail: vi.fn().mockResolvedValue({
+        format: 'jpeg',
+        data: new Uint8Array([0xFF, 0xD8, 0xFF]) // Mock JPEG data
+      }),
     }
   })
 
@@ -50,8 +57,10 @@ describe('useLibRaw', () => {
     
     await waitFor(() => {
       expect(result.current.metadata).not.toBeNull()
-      expect(result.current.imageData).not.toBeNull()
+      expect(result.current.thumbnail).toBeTruthy()
       expect(result.current.isLoading).toBe(false)
+      // imageData should still be null until process is called
+      expect(result.current.imageData).toBeNull()
     })
   })
 
