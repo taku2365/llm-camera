@@ -62,7 +62,6 @@ export default function EditorPage() {
   const [displayImageData, setDisplayImageData] = useState<ImageData | null>(null)
   const [historyMode, setHistoryMode] = useState<'single' | 'compare'>('single')
   const [historySelection, setHistorySelection] = useState<number[]>([])
-  const [isFirstProcess, setIsFirstProcess] = useState(true)
   
   // Use refs for immediate access in event handlers
   const previousImageDataRef = useRef(previousImageData)
@@ -87,68 +86,56 @@ export default function EditorPage() {
     }
   }, [photo, loadFile, router])
 
-  // Update display image and add first process to history
+  // Update display image when processing completes
   useEffect(() => {
     if (imageData) {
       setDisplayImageData(imageData)
-      
-      // Add first processed image to history
-      if (isFirstProcess && lastProcessedParams) {
-        const addFirstToHistory = async () => {
-          try {
-            const jpegDataUrl = await imageDataToJpeg(imageData)
+    }
+  }, [imageData])
+  
+  // Add processed image to history
+  useEffect(() => {
+    if (imageData && lastProcessedParams && editParams && 
+        JSON.stringify(lastProcessedParams) === JSON.stringify(editParams)) {
+      const addToHistory = async () => {
+        try {
+          const jpegDataUrl = await imageDataToJpeg(imageData)
+          
+          setImageHistory(prev => {
+            // Check if this is already in history
+            if (prev.length > 0 && prev[0].params && 
+                JSON.stringify(prev[0].params) === JSON.stringify(lastProcessedParams)) {
+              return prev;
+            }
             
-            setImageHistory([{
+            // Add new history item
+            const newHistory = [{
               id: Date.now().toString(),
               imageData: null,
               jpegDataUrl: jpegDataUrl,
               params: lastProcessedParams,
               timestamp: new Date()
-            }])
-          } catch (err) {
-            console.error('Failed to cache first image as JPEG:', err)
-          }
+            }, ...prev]
+            
+            return newHistory
+          })
+        } catch (err) {
+          console.error('Failed to cache image as JPEG:', err)
         }
-        
-        addFirstToHistory()
       }
+      
+      addToHistory()
     }
-  }, [imageData, lastProcessedParams, isFirstProcess])
+  }, [imageData, lastProcessedParams, editParams])
   
   // Manual processing function
   const handleProcess = useCallback(async () => {
     if (!photo?.file || isLoading || isProcessing) return
     
-    // Add current image to history before processing new one (except for first process)
-    if (!isFirstProcess && imageData && lastProcessedParams) {
-      try {
-        const jpegDataUrl = await imageDataToJpeg(imageData)
-        
-        setImageHistory(prev => {
-          // Add new history item
-          const newHistory = [{
-            id: Date.now().toString(),
-            imageData: null,
-            jpegDataUrl: jpegDataUrl,
-            params: lastProcessedParams,
-            timestamp: new Date()
-          }, ...prev]
-          
-          return newHistory
-        })
-        
-        // Set as previous for comparison
-        setPreviousImageData(imageData)
-      } catch (err) {
-        console.error('Failed to cache image as JPEG:', err)
-      }
-    }
-    
     process(editParams)
     setLastProcessedParams(editParams)
     setHasUnsavedChanges(false)
-    setIsFirstProcess(false)
-  }, [photo?.file, isLoading, isProcessing, process, editParams, imageData, lastProcessedParams, isFirstProcess])
+  }, [photo?.file, isLoading, isProcessing, process, editParams])
   
   // Check if parameters have changed
   useEffect(() => {
@@ -408,6 +395,9 @@ export default function EditorPage() {
         <ComparisonDebugger
           showComparison={historyMode === 'compare' && historySelection.length === 2}
           previousImageData={previousImageData}
+          historyMode={historyMode}
+          historySelection={historySelection}
+          historyCount={imageHistory.length}
         />
       )}
     </div>
