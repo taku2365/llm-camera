@@ -8,7 +8,6 @@ import BasicAdjustments from "@/app/components/editor/BasicAdjustments"
 import AdvancedAdjustments from "@/app/components/editor/AdvancedAdjustments"
 import ComparisonDebugger from "@/app/components/editor/ComparisonDebugger"
 import ImageHistory from "@/app/components/editor/ImageHistory"
-import ComparisonControls from "@/app/components/editor/ComparisonControls"
 import { EditParams } from "@/lib/types"
 import { usePhotosStore } from "@/lib/store/photos"
 import { useLibRaw } from "@/lib/hooks/useLibRaw"
@@ -53,7 +52,6 @@ export default function EditorPage() {
   const [lastProcessedParams, setLastProcessedParams] = useState<EditParams | null>(null)
   const [previousImageData, setPreviousImageData] = useState<ImageData | null>(null)
   const [currentComparisonData, setCurrentComparisonData] = useState<ImageData | null>(null)
-  const [showComparison, setShowComparison] = useState(false)
   const [imageHistory, setImageHistory] = useState<Array<{
     id: string
     imageData: ImageData | null
@@ -66,14 +64,9 @@ export default function EditorPage() {
   const [historySelection, setHistorySelection] = useState<number[]>([])
   
   // Use refs for immediate access in event handlers
-  const showComparisonRef = useRef(showComparison)
   const previousImageDataRef = useRef(previousImageData)
   
   // Keep refs in sync with state
-  useEffect(() => {
-    showComparisonRef.current = showComparison
-  }, [showComparison])
-  
   useEffect(() => {
     previousImageDataRef.current = previousImageData
   }, [previousImageData])
@@ -122,10 +115,9 @@ export default function EditorPage() {
             return newHistory
           })
           
-          // Set comparison if we have history
+          // Set previous image if we have history
           if (imageHistory.length > 0) {
             setPreviousImageData(displayImageData || imageData)
-            setShowComparison(true)
           }
         } catch (err) {
           console.error('Failed to cache image as JPEG:', err)
@@ -193,7 +185,6 @@ export default function EditorPage() {
         setEditParams(item.params)
         setLastProcessedParams(item.params)
         setHasUnsavedChanges(false)
-        setShowComparison(false)
       } catch (err) {
         console.error('Failed to restore from JPEG cache:', err)
         // Fall back to re-processing if cache fails
@@ -218,7 +209,6 @@ export default function EditorPage() {
       try {
         const restoredImageData = await jpegToImageData(item.jpegDataUrl)
         setPreviousImageData(restoredImageData)
-        setShowComparison(true)
       } catch (err) {
         console.error('Failed to restore image from JPEG:', err)
       }
@@ -249,8 +239,8 @@ export default function EditorPage() {
         
         // Set both images for comparison without processing
         setPreviousImageData(imageData1)
-        setCurrentComparisonData(imageData2)
-        setShowComparison(true)
+        setDisplayImageData(imageData2)
+        setCurrentComparisonData(null)
         
         // Update params to match item2 without processing
         setEditParams(item2.params)
@@ -274,13 +264,6 @@ export default function EditorPage() {
       if (e.key === ' ' && !isProcessing && hasUnsavedChanges) {
         e.preventDefault()
         handleProcess()
-      }
-      // C: Toggle comparison
-      else if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault()
-        if (previousImageData) {
-          setShowComparison(prev => !prev)
-        }
       }
       // Ctrl/Cmd + Z: Undo (restore previous)
       else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
@@ -311,7 +294,7 @@ export default function EditorPage() {
     
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isProcessing, hasUnsavedChanges, handleProcess, imageHistory, handleRestoreFromHistory, previousImageData, showComparison])
+  }, [isProcessing, hasUnsavedChanges, handleProcess, imageHistory, handleRestoreFromHistory, previousImageData])
 
   return (
     <div className="h-full flex" data-testid="editor-container">
@@ -348,7 +331,7 @@ export default function EditorPage() {
             imageData={displayImageData || imageData}
             previousImageData={previousImageData}
             currentComparisonData={currentComparisonData}
-            showComparison={showComparison}
+            showComparison={historyMode === 'compare' && historySelection.length === 2}
             isProcessing={isProcessing || isLoading}
           />
           {error && (
@@ -356,11 +339,6 @@ export default function EditorPage() {
               Error: {error}
             </div>
           )}
-          <ComparisonControls
-            showComparison={showComparison}
-            hasComparison={!!previousImageData}
-            onToggleComparison={() => setShowComparison(prev => !prev)}
-          />
         </div>
       </div>
 
@@ -407,7 +385,7 @@ export default function EditorPage() {
           <ImageHistory
             history={imageHistory}
             onRestore={handleRestoreFromHistory}
-            currentImageData={imageData}
+            currentImageData={displayImageData || imageData}
             onCompare={handleCompareWithHistory}
             onCompareTwoItems={handleCompareTwoItems}
           />
@@ -417,7 +395,7 @@ export default function EditorPage() {
       {/* Debug info for development */}
       {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
         <ComparisonDebugger
-          showComparison={showComparison}
+          showComparison={historyMode === 'compare' && historySelection.length === 2}
           previousImageData={previousImageData}
         />
       )}
