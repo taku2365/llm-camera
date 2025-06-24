@@ -32,7 +32,7 @@ export default function ImageViewer({
   // Use currentComparisonData for "after" image if available, otherwise use imageData
   const afterImageData = currentComparisonData || imageData
   
-  // Helper function to draw image data to canvas
+  // Helper function to draw ImageData to canvas
   const drawToCanvas = useCallback((canvas: HTMLCanvasElement | null, data: ImageData | null) => {
     if (!canvas || !data) return
     
@@ -207,8 +207,8 @@ export default function ImageViewer({
                 ref={previousCanvasCallback}
                 className="shadow-2xl block"
                 style={{
-                  width: previousImageData ? `${previousImageData.width}px` : 'auto',
-                  height: previousImageData ? `${previousImageData.height}px` : 'auto',
+                  width: `${previousImageData?.width || 1}px`,
+                  height: `${previousImageData?.height || 1}px`,
                   transform: `scale(${zoom})`,
                   transformOrigin: "center",
                   imageRendering: zoom > 1.5 ? "pixelated" : "auto",
@@ -223,8 +223,8 @@ export default function ImageViewer({
                 ref={currentComparisonData ? comparisonCanvasCallback : mainCanvasCallback}
                 className="shadow-2xl block"
                 style={{
-                  width: afterImageData ? `${afterImageData.width}px` : 'auto',
-                  height: afterImageData ? `${afterImageData.height}px` : 'auto',
+                  width: `${(currentComparisonData || afterImageData)?.width || 1}px`,
+                  height: `${(currentComparisonData || afterImageData)?.height || 1}px`,
                   transform: `scale(${zoom})`,
                   transformOrigin: "center",
                   imageRendering: zoom > 1.5 ? "pixelated" : "auto",
@@ -250,8 +250,8 @@ export default function ImageViewer({
               ref={previousCanvasCallback}
               className="shadow-2xl block"
               style={{
-                width: previousImageData ? `${previousImageData.width}px` : 'auto',
-                height: previousImageData ? `${previousImageData.height}px` : 'auto',
+                width: `${previousImageData?.width || 1}px`,
+                height: `${previousImageData?.height || 1}px`,
                 imageRendering: zoom > 1.5 ? "pixelated" : "auto",
               }}
             />
@@ -264,8 +264,8 @@ export default function ImageViewer({
                 ref={currentComparisonData ? comparisonCanvasCallback : mainCanvasCallback}
                 className="shadow-2xl block"
                 style={{
-                  width: afterImageData ? `${afterImageData.width}px` : 'auto',
-                  height: afterImageData ? `${afterImageData.height}px` : 'auto',
+                  width: `${(currentComparisonData || afterImageData)?.width || 1}px`,
+                  height: `${(currentComparisonData || afterImageData)?.height || 1}px`,
                   imageRendering: zoom > 1.5 ? "pixelated" : "auto",
                 }}
               />
@@ -311,8 +311,8 @@ export default function ImageViewer({
             ref={mainCanvasCallback}
             className="shadow-2xl block"
             style={{
-              width: afterImageData ? `${afterImageData.width}px` : 'auto',
-              height: afterImageData ? `${afterImageData.height}px` : 'auto',
+              width: `${afterImageData?.width || 1}px`,
+              height: `${afterImageData?.height || 1}px`,
               transform: `scale(${zoom})`,
               transformOrigin: "center",
               imageRendering: zoom > 1.5 ? "pixelated" : "auto",

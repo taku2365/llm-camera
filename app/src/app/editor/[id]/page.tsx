@@ -262,6 +262,20 @@ export default function EditorPage() {
         e.preventDefault()
         handleProcess()
       }
+      // C: Toggle comparison
+      else if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        if (previousImageData) {
+          setShowComparison(prev => !prev)
+        }
+      }
+      // M: Toggle comparison mode
+      else if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        if (showComparison && previousImageData) {
+          setComparisonMode(prev => prev === 'slider' ? 'side-by-side' : 'slider')
+        }
+      }
       // Ctrl/Cmd + Z: Undo (restore previous)
       else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
         e.preventDefault()
@@ -291,7 +305,7 @@ export default function EditorPage() {
     
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isProcessing, hasUnsavedChanges, handleProcess, imageHistory, handleRestoreFromHistory])
+  }, [isProcessing, hasUnsavedChanges, handleProcess, imageHistory, handleRestoreFromHistory, previousImageData, showComparison])
 
   return (
     <div className="h-full flex" data-testid="editor-container">

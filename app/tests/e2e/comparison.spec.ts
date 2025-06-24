@@ -14,7 +14,7 @@ test.describe('Image Comparison Feature', () => {
     
     // Upload a test RAW file
     const fileInput = await page.locator('input[type="file"]')
-    const testFile = path.join(__dirname, '../../fixtures/test-image.arw')
+    const testFile = path.join(__dirname, '../fixtures/test-image.arw')
     await fileInput.setInputFiles(testFile)
     
     // Wait for upload to complete
