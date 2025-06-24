@@ -62,6 +62,7 @@ export default function EditorPage() {
   const [displayImageData, setDisplayImageData] = useState<ImageData | null>(null)
   const [historyMode, setHistoryMode] = useState<'single' | 'compare'>('single')
   const [historySelection, setHistorySelection] = useState<number[]>([])
+  const [isFirstProcess, setIsFirstProcess] = useState(true)
   
   // Use refs for immediate access in event handlers
   const previousImageDataRef = useRef(previousImageData)
@@ -86,56 +87,68 @@ export default function EditorPage() {
     }
   }, [photo, loadFile, router])
 
-  // Update display image and history when processing completes
+  // Update display image and add first process to history
   useEffect(() => {
-    if (imageData && lastProcessedParams) {
+    if (imageData) {
       setDisplayImageData(imageData)
       
-      // Add to history when new image is processed
-      const addToHistory = async () => {
-        try {
-          const jpegDataUrl = await imageDataToJpeg(imageData)
-          
-          setImageHistory(prev => {
-            // Check if this is a duplicate of the last entry
-            if (prev.length > 0 && 
-                JSON.stringify(prev[0].params) === JSON.stringify(lastProcessedParams)) {
-              return prev;
-            }
+      // Add first processed image to history
+      if (isFirstProcess && lastProcessedParams) {
+        const addFirstToHistory = async () => {
+          try {
+            const jpegDataUrl = await imageDataToJpeg(imageData)
             
-            // Add new history item
-            const newHistory = [{
+            setImageHistory([{
               id: Date.now().toString(),
               imageData: null,
               jpegDataUrl: jpegDataUrl,
               params: lastProcessedParams,
               timestamp: new Date()
-            }, ...prev]
-            
-            return newHistory
-          })
-          
-          // Set previous image if we have history
-          if (imageHistory.length > 0) {
-            setPreviousImageData(displayImageData || imageData)
+            }])
+          } catch (err) {
+            console.error('Failed to cache first image as JPEG:', err)
           }
-        } catch (err) {
-          console.error('Failed to cache image as JPEG:', err)
         }
+        
+        addFirstToHistory()
       }
-      
-      addToHistory()
     }
-  }, [imageData, lastProcessedParams, displayImageData, imageHistory.length])
+  }, [imageData, lastProcessedParams, isFirstProcess])
   
   // Manual processing function
   const handleProcess = useCallback(async () => {
     if (!photo?.file || isLoading || isProcessing) return
     
+    // Add current image to history before processing new one (except for first process)
+    if (!isFirstProcess && imageData && lastProcessedParams) {
+      try {
+        const jpegDataUrl = await imageDataToJpeg(imageData)
+        
+        setImageHistory(prev => {
+          // Add new history item
+          const newHistory = [{
+            id: Date.now().toString(),
+            imageData: null,
+            jpegDataUrl: jpegDataUrl,
+            params: lastProcessedParams,
+            timestamp: new Date()
+          }, ...prev]
+          
+          return newHistory
+        })
+        
+        // Set as previous for comparison
+        setPreviousImageData(imageData)
+      } catch (err) {
+        console.error('Failed to cache image as JPEG:', err)
+      }
+    }
+    
     process(editParams)
     setLastProcessedParams(editParams)
     setHasUnsavedChanges(false)
-  }, [photo?.file, isLoading, isProcessing, process, editParams])
+    setIsFirstProcess(false)
+  }, [photo?.file, isLoading, isProcessing, process, editParams, imageData, lastProcessedParams, isFirstProcess])
   
   // Check if parameters have changed
   useEffect(() => {
@@ -382,6 +395,10 @@ export default function EditorPage() {
             currentImageData={displayImageData || imageData}
             onCompare={handleCompareWithHistory}
             onCompareTwoItems={handleCompareTwoItems}
+            mode={historyMode}
+            onModeChange={setHistoryMode}
+            selectedIndices={historySelection}
+            onSelectionChange={setHistorySelection}
           />
         </div>
       </aside>
