@@ -154,12 +154,6 @@ export default function EditorPage() {
     }
   }, [metadata, editParams.cropArea])
   
-  // Clear currentComparisonData when comparison is turned off
-  useEffect(() => {
-    if (!showComparison) {
-      setCurrentComparisonData(null)
-    }
-  }, [showComparison])
 
   const handleParamChange = (param: keyof EditParams, value: any) => {
     setEditParams(prev => ({
