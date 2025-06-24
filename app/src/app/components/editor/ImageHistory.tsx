@@ -17,26 +17,83 @@ interface ImageHistoryProps {
   currentImageData: ImageData | null
   onCompare?: (item: ImageHistoryItem) => void
   onCompareTwoItems?: (item1: ImageHistoryItem, item2: ImageHistoryItem) => void
+  mode?: 'normal' | 'compare'
+  onModeChange?: (mode: 'normal' | 'compare') => void
+  selectedIndex?: number
+  selectedIndices?: number[]
+  onSelectionChange?: (indices: number[]) => void
 }
 
-export default function ImageHistory({ history, onRestore, currentImageData, onCompare, onCompareTwoItems }: ImageHistoryProps) {
-  const [selectedItems, setSelectedItems] = useState<string[]>([])
-  const handleSelectItem = (id: string) => {
-    setSelectedItems(prev => {
-      if (prev.includes(id)) {
-        return prev.filter(item => item !== id)
+export default function ImageHistory({ 
+  history, 
+  onRestore, 
+  currentImageData, 
+  onCompare, 
+  onCompareTwoItems,
+  mode = 'normal',
+  onModeChange,
+  selectedIndex,
+  selectedIndices = [],
+  onSelectionChange
+}: ImageHistoryProps) {
+  const [internalMode, setInternalMode] = useState<'normal' | 'compare'>(mode)
+  const [internalSelection, setInternalSelection] = useState<number[]>(selectedIndices)
+  
+  const currentMode = onModeChange ? mode : internalMode
+  const currentSelection = onSelectionChange ? selectedIndices : internalSelection
+  
+  const handleModeChange = (newMode: 'normal' | 'compare') => {
+    if (onModeChange) {
+      onModeChange(newMode)
+    } else {
+      setInternalMode(newMode)
+    }
+    // Clear selection when switching modes
+    if (onSelectionChange) {
+      onSelectionChange([])
+    } else {
+      setInternalSelection([])
+    }
+  }
+  
+  const handleSelectItem = (index: number) => {
+    if (currentMode === 'normal') {
+      // In normal mode, only one selection
+      const newSelection = currentSelection.includes(index) ? [] : [index]
+      if (onSelectionChange) {
+        onSelectionChange(newSelection)
+      } else {
+        setInternalSelection(newSelection)
       }
-      if (prev.length >= 2) {
-        return [prev[1], id]
+      // Immediately show the cached image
+      if (newSelection.length === 1) {
+        const item = history[index]
+        if (item && item.jpegDataUrl) {
+          onRestore(item)
+        }
       }
-      return [...prev, id]
-    })
+    } else {
+      // In compare mode, up to two selections
+      let newSelection: number[]
+      if (currentSelection.includes(index)) {
+        newSelection = currentSelection.filter(i => i !== index)
+      } else if (currentSelection.length >= 2) {
+        newSelection = [currentSelection[1], index]
+      } else {
+        newSelection = [...currentSelection, index]
+      }
+      if (onSelectionChange) {
+        onSelectionChange(newSelection)
+      } else {
+        setInternalSelection(newSelection)
+      }
+    }
   }
 
   const handleCompareSelected = () => {
-    if (selectedItems.length === 2 && onCompareTwoItems) {
-      const item1 = history.find(item => item.id === selectedItems[0])
-      const item2 = history.find(item => item.id === selectedItems[1])
+    if (currentSelection.length === 2 && onCompareTwoItems) {
+      const item1 = history[currentSelection[0]]
+      const item2 = history[currentSelection[1]]
       if (item1 && item2) {
         onCompareTwoItems(item1, item2)
       }
@@ -54,41 +111,68 @@ export default function ImageHistory({ history, onRestore, currentImageData, onC
 
   return (
     <div className="p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium text-white">
-          History <span className="text-sm text-gray-400">({history.length}/10)</span>
-        </h3>
-        {selectedItems.length === 2 && (
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-medium text-white">
+            History <span className="text-sm text-gray-400">({history.length})</span>
+          </h3>
+        </div>
+        <div className="flex gap-2 mb-2">
           <button
-            onClick={handleCompareSelected}
-            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+            onClick={() => handleModeChange('normal')}
+            className={`px-3 py-1 text-sm rounded transition-colors ${
+              currentMode === 'normal' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
           >
-            Compare Selected
+            Normal
           </button>
-        )}
+          <button
+            onClick={() => handleModeChange('compare')}
+            className={`px-3 py-1 text-sm rounded transition-colors ${
+              currentMode === 'compare' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Compare
+          </button>
+          {currentMode === 'compare' && currentSelection.length === 2 && (
+            <button
+              onClick={handleCompareSelected}
+              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 ml-auto"
+            >
+              Show Comparison
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-gray-400">
+          {currentMode === 'normal' 
+            ? 'Click to view any cached version' 
+            : 'Select two versions to compare'}
+        </p>
       </div>
       <div className="space-y-2">
         {history.map((item, index) => {
           const timeAgo = getTimeAgo(item.timestamp)
-          const isSelected = selectedItems.includes(item.id)
+          const isSelected = currentSelection.includes(index)
           
           return (
             <div
               key={item.id}
-              className={`flex items-center gap-3 p-2 rounded transition-colors ${
+              className={`flex items-center gap-3 p-2 rounded transition-colors cursor-pointer ${
                 isSelected ? 'bg-blue-900/30 border border-blue-600' : 'hover:bg-gray-700'
               }`}
+              onClick={() => handleSelectItem(index)}
             >
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => handleSelectItem(item.id)}
-                onClick={(e) => e.stopPropagation()}
-                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-              />
+              <div className="flex items-center justify-center w-6 h-6 text-sm font-medium rounded ${
+                isSelected ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'
+              }">
+                {index}
+              </div>
               <div 
-                className="w-20 h-15 bg-gray-700 rounded overflow-hidden cursor-pointer"
-                onClick={() => onRestore(item)}
+                className="w-20 h-15 bg-gray-700 rounded overflow-hidden"
               >
                 {item.jpegDataUrl ? (
                   <img 
@@ -104,7 +188,7 @@ export default function ImageHistory({ history, onRestore, currentImageData, onC
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm text-white">
-                  {index === 0 ? 'Current' : `${timeAgo}`}
+                  #{index} - {timeAgo}
                 </div>
                 <div className="text-xs text-gray-400 truncate">
                   Exp: {item.params.exposure.toFixed(1)}, 
@@ -112,34 +196,11 @@ export default function ImageHistory({ history, onRestore, currentImageData, onC
                   Sat: {item.params.saturation}
                 </div>
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onRestore(item)
-                  }}
-                  className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-600"
-                  title="Restore this version"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                </button>
-                {onCompare && index > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onCompare(item)
-                    }}
-                    className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-600"
-                    title="Compare with current"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </button>
-                )}
-              </div>
+              {currentMode === 'compare' && currentSelection.length < 2 && (
+                <div className="text-xs text-gray-500">
+                  {currentSelection.length === 0 ? 'Select 2' : 'Select 1 more'}
+                </div>
+              )}
             </div>
           )
         })}

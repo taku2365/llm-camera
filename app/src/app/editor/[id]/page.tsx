@@ -61,6 +61,9 @@ export default function EditorPage() {
     params: EditParams
     timestamp: Date
   }>>([])
+  const [displayImageData, setDisplayImageData] = useState<ImageData | null>(null)
+  const [historyMode, setHistoryMode] = useState<'normal' | 'compare'>('normal')
+  const [historySelection, setHistorySelection] = useState<number[]>([])
   
   // Use refs for immediate access in event handlers
   const showComparisonRef = useRef(showComparison)
@@ -90,28 +93,36 @@ export default function EditorPage() {
     }
   }, [photo, loadFile, router])
 
+  // Update display image when processing completes
+  useEffect(() => {
+    if (imageData) {
+      setDisplayImageData(imageData)
+    }
+  }, [imageData])
+  
   // Manual processing function
   const handleProcess = useCallback(async () => {
     if (!photo?.file || isLoading || isProcessing) return
     
-    // Store current image as previous before processing new one
-    if (imageData) {
-      setPreviousImageData(imageData)
+    // Store current image in history before processing new one
+    const currentDisplay = displayImageData || imageData
+    if (currentDisplay && lastProcessedParams) {
+      setPreviousImageData(currentDisplay)
       setShowComparison(true)
       
       // Convert to JPEG for history caching
       try {
-        const jpegDataUrl = await imageDataToJpeg(imageData)
+        const jpegDataUrl = await imageDataToJpeg(currentDisplay)
         
-        // Add to history (keep last 10 images)
+        // Add to history with proper indexing
         setImageHistory(prev => {
           const newHistory = [{
             id: Date.now().toString(),
             imageData: null, // Don't store raw ImageData
             jpegDataUrl: jpegDataUrl,
-            params: lastProcessedParams || editParams,
+            params: lastProcessedParams,
             timestamp: new Date()
-          }, ...prev].slice(0, 10)
+          }, ...prev]
           return newHistory
         })
       } catch (err) {
@@ -122,7 +133,7 @@ export default function EditorPage() {
     process(editParams)
     setLastProcessedParams(editParams)
     setHasUnsavedChanges(false)
-  }, [photo?.file, isLoading, isProcessing, imageData, process, editParams, lastProcessedParams])
+  }, [photo?.file, isLoading, isProcessing, displayImageData, imageData, process, editParams, lastProcessedParams])
   
   // Check if parameters have changed
   useEffect(() => {
@@ -163,32 +174,26 @@ export default function EditorPage() {
     params: EditParams
     timestamp: Date
   }) => {
-    // Store current as previous
-    if (imageData) {
-      setPreviousImageData(imageData)
-    }
-    
-    // Update edit params
-    setEditParams(item.params)
-    setLastProcessedParams(item.params)
-    setHasUnsavedChanges(false)
-    
-    // If we have cached JPEG, show it immediately
+    // If we have cached JPEG, show it immediately without re-processing
     if (item.jpegDataUrl) {
       try {
         const restoredImageData = await jpegToImageData(item.jpegDataUrl)
-        // This is a hack to update imageData from useLibRaw hook
-        // We need to trigger process but the image is already what we want
-        // So we'll just update params and let the UI show the cached image
+        setDisplayImageData(restoredImageData)
+        // Update edit params to match
+        setEditParams(item.params)
+        setLastProcessedParams(item.params)
+        setHasUnsavedChanges(false)
         setShowComparison(false)
       } catch (err) {
         console.error('Failed to restore from JPEG cache:', err)
+        // Fall back to re-processing if cache fails
+        process(item.params)
       }
+    } else {
+      // No cache, need to re-process
+      process(item.params)
     }
-    
-    // Always trigger process to sync with the restored params
-    process(item.params)
-  }, [imageData, process])
+  }, [process])
   
   // Compare with history item
   const handleCompareWithHistory = useCallback(async (item: {
@@ -330,7 +335,7 @@ export default function EditorPage() {
         {/* Image viewer */}
         <div className="flex-1 relative">
           <ImageViewer 
-            imageData={imageData}
+            imageData={displayImageData || imageData}
             previousImageData={previousImageData}
             currentComparisonData={currentComparisonData}
             showComparison={showComparison}
