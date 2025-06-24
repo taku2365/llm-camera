@@ -62,6 +62,7 @@ export default function EditorPage() {
   const [displayImageData, setDisplayImageData] = useState<ImageData | null>(null)
   const [historyMode, setHistoryMode] = useState<'single' | 'compare'>('single')
   const [historySelection, setHistorySelection] = useState<number[]>([])
+  const [processingCompleted, setProcessingCompleted] = useState(false)
   
   // Use refs for immediate access in event handlers
   const previousImageDataRef = useRef(previousImageData)
@@ -93,27 +94,20 @@ export default function EditorPage() {
     }
   }, [imageData])
   
-  // Add processed image to history
+  // Add to history when processing is marked as completed
   useEffect(() => {
-    if (imageData && lastProcessedParams && editParams && 
-        JSON.stringify(lastProcessedParams) === JSON.stringify(editParams)) {
+    if (processingCompleted && imageData && lastProcessedParams) {
       const addToHistory = async () => {
         try {
           const jpegDataUrl = await imageDataToJpeg(imageData)
           
           setImageHistory(prev => {
-            // Check if this is already in history
-            if (prev.length > 0 && prev[0].params && 
-                JSON.stringify(prev[0].params) === JSON.stringify(lastProcessedParams)) {
-              return prev;
-            }
-            
             // Add new history item
             const newHistory = [{
               id: Date.now().toString(),
               imageData: null,
               jpegDataUrl: jpegDataUrl,
-              params: lastProcessedParams,
+              params: { ...lastProcessedParams }, // Clone to avoid reference issues
               timestamp: new Date()
             }, ...prev]
             
@@ -121,20 +115,24 @@ export default function EditorPage() {
           })
         } catch (err) {
           console.error('Failed to cache image as JPEG:', err)
+        } finally {
+          // Reset the flag
+          setProcessingCompleted(false)
         }
       }
       
       addToHistory()
     }
-  }, [imageData, lastProcessedParams, editParams])
+  }, [processingCompleted, imageData, lastProcessedParams])
   
   // Manual processing function
   const handleProcess = useCallback(async () => {
     if (!photo?.file || isLoading || isProcessing) return
     
     process(editParams)
-    setLastProcessedParams(editParams)
+    setLastProcessedParams({ ...editParams }) // Clone to avoid reference issues
     setHasUnsavedChanges(false)
+    setProcessingCompleted(true) // Mark that processing was triggered
   }, [photo?.file, isLoading, isProcessing, process, editParams])
   
   // Check if parameters have changed
