@@ -17,8 +17,8 @@ interface ImageHistoryProps {
   currentImageData: ImageData | null
   onCompare?: (item: ImageHistoryItem) => void
   onCompareTwoItems?: (item1: ImageHistoryItem, item2: ImageHistoryItem) => void
-  mode?: 'normal' | 'compare'
-  onModeChange?: (mode: 'normal' | 'compare') => void
+  mode?: 'single' | 'compare'
+  onModeChange?: (mode: 'single' | 'compare') => void
   selectedIndex?: number
   selectedIndices?: number[]
   onSelectionChange?: (indices: number[]) => void
@@ -30,19 +30,19 @@ export default function ImageHistory({
   currentImageData, 
   onCompare, 
   onCompareTwoItems,
-  mode = 'normal',
+  mode = 'single',
   onModeChange,
   selectedIndex,
   selectedIndices = [],
   onSelectionChange
 }: ImageHistoryProps) {
-  const [internalMode, setInternalMode] = useState<'normal' | 'compare'>(mode)
+  const [internalMode, setInternalMode] = useState<'single' | 'compare'>(mode)
   const [internalSelection, setInternalSelection] = useState<number[]>(selectedIndices)
   
   const currentMode = onModeChange ? mode : internalMode
   const currentSelection = onSelectionChange ? selectedIndices : internalSelection
   
-  const handleModeChange = (newMode: 'normal' | 'compare') => {
+  const handleModeChange = (newMode: 'single' | 'compare') => {
     if (onModeChange) {
       onModeChange(newMode)
     } else {
@@ -57,20 +57,18 @@ export default function ImageHistory({
   }
   
   const handleSelectItem = (index: number) => {
-    if (currentMode === 'normal') {
-      // In normal mode, only one selection
-      const newSelection = currentSelection.includes(index) ? [] : [index]
+    if (currentMode === 'single') {
+      // In single mode, only one selection
+      const newSelection = [index]
       if (onSelectionChange) {
         onSelectionChange(newSelection)
       } else {
         setInternalSelection(newSelection)
       }
       // Immediately show the cached image
-      if (newSelection.length === 1) {
-        const item = history[index]
-        if (item && item.jpegDataUrl) {
-          onRestore(item)
-        }
+      const item = history[index]
+      if (item && item.jpegDataUrl) {
+        onRestore(item)
       }
     } else {
       // In compare mode, up to two selections
@@ -87,18 +85,18 @@ export default function ImageHistory({
       } else {
         setInternalSelection(newSelection)
       }
-    }
-  }
-
-  const handleCompareSelected = () => {
-    if (currentSelection.length === 2 && onCompareTwoItems) {
-      const item1 = history[currentSelection[0]]
-      const item2 = history[currentSelection[1]]
-      if (item1 && item2) {
-        onCompareTwoItems(item1, item2)
+      
+      // Auto-compare when 2 items are selected
+      if (newSelection.length === 2 && onCompareTwoItems) {
+        const item1 = history[newSelection[0]]
+        const item2 = history[newSelection[1]]
+        if (item1 && item2) {
+          onCompareTwoItems(item1, item2)
+        }
       }
     }
   }
+
 
   if (history.length === 0) {
     return (
@@ -119,14 +117,14 @@ export default function ImageHistory({
         </div>
         <div className="flex gap-2 mb-2">
           <button
-            onClick={() => handleModeChange('normal')}
+            onClick={() => handleModeChange('single')}
             className={`px-3 py-1 text-sm rounded transition-colors ${
-              currentMode === 'normal' 
+              currentMode === 'single' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            Normal
+            Single
           </button>
           <button
             onClick={() => handleModeChange('compare')}
@@ -135,21 +133,14 @@ export default function ImageHistory({
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
+            disabled={history.length < 2}
           >
             Compare
           </button>
-          {currentMode === 'compare' && currentSelection.length === 2 && (
-            <button
-              onClick={handleCompareSelected}
-              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 ml-auto"
-            >
-              Show Comparison
-            </button>
-          )}
         </div>
         <p className="text-xs text-gray-400">
-          {currentMode === 'normal' 
-            ? 'Click to view any cached version' 
+          {currentMode === 'single' 
+            ? 'Select a version to view' 
             : 'Select two versions to compare'}
         </p>
       </div>
@@ -196,11 +187,6 @@ export default function ImageHistory({
                   Sat: {item.params.saturation}
                 </div>
               </div>
-              {currentMode === 'compare' && currentSelection.length < 2 && (
-                <div className="text-xs text-gray-500">
-                  {currentSelection.length === 0 ? 'Select 2' : 'Select 1 more'}
-                </div>
-              )}
             </div>
           )
         })}

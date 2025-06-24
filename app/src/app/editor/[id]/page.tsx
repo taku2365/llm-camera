@@ -62,7 +62,7 @@ export default function EditorPage() {
     timestamp: Date
   }>>([])
   const [displayImageData, setDisplayImageData] = useState<ImageData | null>(null)
-  const [historyMode, setHistoryMode] = useState<'normal' | 'compare'>('normal')
+  const [historyMode, setHistoryMode] = useState<'single' | 'compare'>('single')
   const [historySelection, setHistorySelection] = useState<number[]>([])
   
   // Use refs for immediate access in event handlers
@@ -93,47 +93,57 @@ export default function EditorPage() {
     }
   }, [photo, loadFile, router])
 
-  // Update display image when processing completes
+  // Update display image and history when processing completes
   useEffect(() => {
-    if (imageData) {
+    if (imageData && lastProcessedParams) {
       setDisplayImageData(imageData)
+      
+      // Add to history when new image is processed
+      const addToHistory = async () => {
+        try {
+          const jpegDataUrl = await imageDataToJpeg(imageData)
+          
+          setImageHistory(prev => {
+            // Check if this is a duplicate of the last entry
+            if (prev.length > 0 && 
+                JSON.stringify(prev[0].params) === JSON.stringify(lastProcessedParams)) {
+              return prev;
+            }
+            
+            // Add new history item
+            const newHistory = [{
+              id: Date.now().toString(),
+              imageData: null,
+              jpegDataUrl: jpegDataUrl,
+              params: lastProcessedParams,
+              timestamp: new Date()
+            }, ...prev]
+            
+            return newHistory
+          })
+          
+          // Set comparison if we have history
+          if (imageHistory.length > 0) {
+            setPreviousImageData(displayImageData || imageData)
+            setShowComparison(true)
+          }
+        } catch (err) {
+          console.error('Failed to cache image as JPEG:', err)
+        }
+      }
+      
+      addToHistory()
     }
-  }, [imageData])
+  }, [imageData, lastProcessedParams, displayImageData, imageHistory.length])
   
   // Manual processing function
   const handleProcess = useCallback(async () => {
     if (!photo?.file || isLoading || isProcessing) return
     
-    // Store current image in history before processing new one
-    const currentDisplay = displayImageData || imageData
-    if (currentDisplay && lastProcessedParams) {
-      setPreviousImageData(currentDisplay)
-      setShowComparison(true)
-      
-      // Convert to JPEG for history caching
-      try {
-        const jpegDataUrl = await imageDataToJpeg(currentDisplay)
-        
-        // Add to history with proper indexing
-        setImageHistory(prev => {
-          const newHistory = [{
-            id: Date.now().toString(),
-            imageData: null, // Don't store raw ImageData
-            jpegDataUrl: jpegDataUrl,
-            params: lastProcessedParams,
-            timestamp: new Date()
-          }, ...prev]
-          return newHistory
-        })
-      } catch (err) {
-        console.error('Failed to cache image as JPEG:', err)
-      }
-    }
-    
     process(editParams)
     setLastProcessedParams(editParams)
     setHasUnsavedChanges(false)
-  }, [photo?.file, isLoading, isProcessing, displayImageData, imageData, process, editParams, lastProcessedParams])
+  }, [photo?.file, isLoading, isProcessing, process, editParams])
   
   // Check if parameters have changed
   useEffect(() => {

@@ -76,7 +76,7 @@ describe('ImageHistory', () => {
     expect(screen.getByText('#2 - 3s ago')).toBeInTheDocument()
   })
 
-  it('switches between normal and compare modes', () => {
+  it('switches between single and compare modes', () => {
     render(
       <ImageHistory 
         history={mockHistory}
@@ -85,20 +85,20 @@ describe('ImageHistory', () => {
       />
     )
     
-    const normalButton = screen.getByText('Normal')
+    const singleButton = screen.getByText('Single')
     const compareButton = screen.getByText('Compare')
     
-    // Default is normal mode
-    expect(normalButton).toHaveClass('bg-blue-600')
+    // Default is single mode
+    expect(singleButton).toHaveClass('bg-blue-600')
     expect(compareButton).not.toHaveClass('bg-blue-600')
     
     // Switch to compare mode
     fireEvent.click(compareButton)
     expect(compareButton).toHaveClass('bg-blue-600')
-    expect(normalButton).not.toHaveClass('bg-blue-600')
+    expect(singleButton).not.toHaveClass('bg-blue-600')
   })
 
-  it('calls onRestore immediately in normal mode', () => {
+  it('calls onRestore immediately in single mode', () => {
     const onRestore = vi.fn()
     render(
       <ImageHistory 
@@ -132,12 +132,7 @@ describe('ImageHistory', () => {
     fireEvent.click(screen.getByText('#0 - 1s ago').closest('div')!)
     fireEvent.click(screen.getByText('#2 - 3s ago').closest('div')!)
     
-    // Show Comparison button should appear
-    expect(screen.getByText('Show Comparison')).toBeInTheDocument()
-    
-    // Click Show Comparison
-    fireEvent.click(screen.getByText('Show Comparison'))
-    
+    // Auto-compare should be called when 2 items are selected
     expect(onCompareTwoItems).toHaveBeenCalledWith(mockHistory[0], mockHistory[2])
   })
 
@@ -150,13 +145,26 @@ describe('ImageHistory', () => {
       />
     )
     
-    // Normal mode instruction
-    expect(screen.getByText('Click to view any cached version')).toBeInTheDocument()
+    // Single mode instruction
+    expect(screen.getByText('Select a version to view')).toBeInTheDocument()
     
     // Switch to compare mode
     fireEvent.click(screen.getByText('Compare'))
     
     // Compare mode instruction
     expect(screen.getByText('Select two versions to compare')).toBeInTheDocument()
+  })
+
+  it('disables compare mode when less than 2 items', () => {
+    render(
+      <ImageHistory 
+        history={[mockHistory[0]]} // Only one item
+        onRestore={vi.fn()}
+        currentImageData={null}
+      />
+    )
+    
+    const compareButton = screen.getByText('Compare')
+    expect(compareButton).toBeDisabled()
   })
 })
