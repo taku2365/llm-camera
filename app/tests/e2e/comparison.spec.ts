@@ -68,8 +68,7 @@ test.describe('Image Comparison Feature', () => {
     // Take screenshot of comparison enabled
     await page.screenshot({ path: 'test-results/comparison-enabled.png', fullPage: true })
     
-    // Check that mode change hint appears
-    await expect(page.locator('text="Press \\"M\\" to change mode"')).toBeVisible()
+    // Mode change hint removed from UI
     
     // Press C again to disable
     await page.keyboard.press('c')
@@ -78,11 +77,10 @@ test.describe('Image Comparison Feature', () => {
     // Take screenshot of comparison disabled
     await page.screenshot({ path: 'test-results/comparison-disabled.png', fullPage: true })
     
-    // Mode change hint should be hidden
-    await expect(page.locator('text="Press \\"M\\" to change mode"')).not.toBeVisible()
+    // Comparison should be disabled
   })
 
-  test('M key should change comparison mode', async ({ page }) => {
+  test.skip('M key should change comparison mode - feature removed', async ({ page }) => {
     // Process initial image
     await page.click('button:has-text("Process")')
     await waitForImage(page)

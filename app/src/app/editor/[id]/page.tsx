@@ -54,7 +54,6 @@ export default function EditorPage() {
   const [previousImageData, setPreviousImageData] = useState<ImageData | null>(null)
   const [currentComparisonData, setCurrentComparisonData] = useState<ImageData | null>(null)
   const [showComparison, setShowComparison] = useState(false)
-  const [comparisonMode, setComparisonMode] = useState<'slider' | 'side-by-side'>('slider')
   const [imageHistory, setImageHistory] = useState<Array<{
     id: string
     imageData: ImageData | null
@@ -237,7 +236,6 @@ export default function EditorPage() {
         setPreviousImageData(imageData1)
         setCurrentComparisonData(imageData2)
         setShowComparison(true)
-        setComparisonMode('side-by-side')
         
         // Update params to match item2 without processing
         setEditParams(item2.params)
@@ -267,13 +265,6 @@ export default function EditorPage() {
         e.preventDefault()
         if (previousImageData) {
           setShowComparison(prev => !prev)
-        }
-      }
-      // M: Toggle comparison mode
-      else if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault()
-        if (showComparison && previousImageData) {
-          setComparisonMode(prev => prev === 'slider' ? 'side-by-side' : 'slider')
         }
       }
       // Ctrl/Cmd + Z: Undo (restore previous)
@@ -343,7 +334,6 @@ export default function EditorPage() {
             previousImageData={previousImageData}
             currentComparisonData={currentComparisonData}
             showComparison={showComparison}
-            comparisonMode={comparisonMode}
             isProcessing={isProcessing || isLoading}
           />
           {error && (
@@ -353,10 +343,8 @@ export default function EditorPage() {
           )}
           <ComparisonControls
             showComparison={showComparison}
-            comparisonMode={comparisonMode}
             hasComparison={!!previousImageData}
             onToggleComparison={() => setShowComparison(prev => !prev)}
-            onToggleMode={() => setComparisonMode(prev => prev === 'slider' ? 'side-by-side' : 'slider')}
           />
         </div>
       </div>
@@ -415,7 +403,6 @@ export default function EditorPage() {
       {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
         <ComparisonDebugger
           showComparison={showComparison}
-          comparisonMode={comparisonMode}
           previousImageData={previousImageData}
         />
       )}

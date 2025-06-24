@@ -28,7 +28,6 @@ describe('ImageViewer', () => {
         imageData={mockImageData} 
         previousImageData={mockPreviousImageData}
         showComparison={false}
-        comparisonMode="slider"
         isProcessing={false} 
       />
     )
@@ -43,25 +42,14 @@ describe('ImageViewer', () => {
         imageData={mockImageData} 
         previousImageData={mockPreviousImageData}
         showComparison={true}
-        comparisonMode="slider"
         isProcessing={false} 
       />
     )
     expect(container.querySelector('.cursor-ew-resize')).toBeInTheDocument()
   })
 
-  it('renders side-by-side comparison mode correctly', () => {
-    render(
-      <ImageViewer 
-        imageData={mockImageData} 
-        previousImageData={mockPreviousImageData}
-        showComparison={true}
-        comparisonMode="side-by-side"
-        isProcessing={false} 
-      />
-    )
-    expect(screen.getByText('Before')).toBeInTheDocument()
-    expect(screen.getByText('After')).toBeInTheDocument()
+  it.skip('renders side-by-side comparison mode correctly - feature removed', () => {
+    // Feature removed - test skipped
   })
 
   it('shows zoom controls', () => {
