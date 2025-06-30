@@ -46,7 +46,7 @@ npm install
 
 3. Build LibRaw WebAssembly module:
 ```bash
-cd ../LibRaw
+cd ../external/LibRaw
 ./build-wasm.sh
 ```
 
@@ -73,7 +73,8 @@ llm-camera/
 │   │   └── types/         # TypeScript types
 │   └── public/
 │       └── wasm/          # WebAssembly modules
-└── LibRaw/                # LibRaw source (submodule)
+└── external/
+    └── LibRaw/                # LibRaw source (submodule)
     └── wasm/              # WebAssembly wrapper
 ```
 

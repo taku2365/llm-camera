@@ -34,11 +34,11 @@ This is a WebAssembly port of LibRaw, a C++ library for reading and processing R
 ## Build Commands
 
 ### Prerequisites
-The project requires Emscripten SDK. The build script automatically sources it from `../emsdk/emsdk_env.sh` if available.
+The project requires Emscripten SDK. The build script automatically sources it from `../../emsdk/emsdk_env.sh` if available.
 
 ### Building LibRaw WASM
 ```bash
-# From the LibRaw directory
+# From the external/LibRaw directory
 ./build-wasm.sh              # Build both ES6 and CommonJS modules
 ./build-wasm.sh node         # Build CommonJS module only
 ./build-wasm.sh browser      # Build ES6 module only
@@ -49,7 +49,7 @@ make -f Makefile.emscripten
 
 ## Testing Commands
 
-### LibRaw Tests (in LibRaw directory)
+### LibRaw Tests (in external/LibRaw directory)
 ```bash
 # Run all tests
 npm test
