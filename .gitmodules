@@ -2,3 +2,6 @@
 	path = external/LibRaw
 	url = https://github.com/taku2365/LibRaw.git
 	branch = main
+[submodule "external/MetaISP"]
+	path = external/MetaISP
+	url = https://github.com/taku2365/MetaISP.git
