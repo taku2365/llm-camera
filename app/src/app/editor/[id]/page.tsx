@@ -8,6 +8,7 @@ import BasicAdjustments from "@/app/components/editor/BasicAdjustments"
 import AdvancedAdjustments from "@/app/components/editor/AdvancedAdjustments"
 import ComparisonDebugger from "@/app/components/editor/ComparisonDebugger"
 import ImageHistory from "@/app/components/editor/ImageHistory"
+import ExportDialog from "@/app/components/editor/ExportDialog"
 import { EditParams } from "@/lib/types"
 import { usePhotosStore } from "@/lib/store/photos"
 import { useLibRaw } from "@/lib/hooks/useLibRaw"
@@ -62,6 +63,7 @@ export default function EditorPage() {
   const [displayImageData, setDisplayImageData] = useState<ImageData | null>(null)
   const [historyMode, setHistoryMode] = useState<'single' | 'compare'>('single')
   const [historySelection, setHistorySelection] = useState<number[]>([])
+  const [showExportDialog, setShowExportDialog] = useState(false)
   const [shouldAddToHistory, setShouldAddToHistory] = useState(false)
   const previousIsProcessingRef = useRef(false)
   
@@ -267,36 +269,16 @@ export default function EditorPage() {
         e.preventDefault()
         handleProcess()
       }
-      // Ctrl/Cmd + Z: Undo (restore previous)
-      else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      // Ctrl/Cmd + E: Export
+      else if ((e.key === 'e' || e.key === 'E') && (e.ctrlKey || e.metaKey)) {
         e.preventDefault()
-        console.log('[DEBUG] Undo triggered')
-        
-        // Find the next item in history
-        if (imageHistory.length > 0) {
-          const currentIndex = 0 // Since we always add to the beginning
-          const nextItem = imageHistory[currentIndex]
-          if (nextItem) {
-            handleRestoreFromHistory(nextItem)
-          }
-        }
-      }
-      // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y: Redo
-      else if (((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) || 
-               ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey))) {
-        e.preventDefault()
-        console.log('[DEBUG] Redo triggered')
-        
-        // For now, just restore the most recent if available
-        if (imageHistory.length > 1) {
-          handleRestoreFromHistory(imageHistory[1])
-        }
+        setShowExportDialog(true)
       }
     }
     
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isProcessing, hasUnsavedChanges, handleProcess, imageHistory, handleRestoreFromHistory, previousImageData])
+  }, [isProcessing, hasUnsavedChanges, handleProcess])
 
   return (
     <div className="h-full flex" data-testid="editor-container">
@@ -307,7 +289,18 @@ export default function EditorPage() {
           <div className="h-24 px-4 py-2">
             <Histogram imageData={imageData} />
           </div>
-          <div className="px-4 pb-2 flex justify-end">
+          <div className="px-4 pb-2 flex justify-between">
+            <button
+              onClick={() => setShowExportDialog(true)}
+              disabled={imageHistory.length === 0}
+              className={`px-4 py-2 rounded font-medium transition-colors ${
+                imageHistory.length === 0
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
+              }`}
+            >
+              Export ({imageHistory.length})
+            </button>
             <button
               onClick={handleProcess}
               disabled={isProcessing || isLoading || !photo?.file}
@@ -408,6 +401,15 @@ export default function EditorPage() {
           historyCount={imageHistory.length}
         />
       )}
+      
+      {/* Export Dialog */}
+      <ExportDialog
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+        history={imageHistory}
+        currentImageData={imageData}
+        currentParams={editParams}
+      />
     </div>
   )
 }
