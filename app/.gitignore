@@ -10,6 +10,13 @@
 /coverage
 /playwright-report
 /test-results
+/tests/fixtures/*.arw
+/tests/fixtures/*.cr2
+/tests/fixtures/*.nef
+/tests/fixtures/*.dng
+/tests/fixtures/*.raw
+/tests/fixtures/*.raf
+/tests/fixtures/*.orf
 
 # next.js
 /.next/
