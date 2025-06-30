@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetaISP ONNX Runtime Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #555;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        #progressBar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        #progressFill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MetaISP + ONNX Runtime WebGPU Test</h1>
+        
+        <div class="section">
+            <h2>1. Environment Check</h2>
+            <button onclick="checkEnvironment()">Check Environment</button>
+            <div id="envStatus" class="status"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Simple ONNX Model Test</h2>
+            <button onclick="testSimpleModel()">Test Simple Model</button>
+            <div id="simpleStatus" class="status"></div>
+        </div>
+
+        <div class="section">
+            <h2>3. WebGPU Backend Test</h2>
+            <button onclick="testWebGPU()">Test WebGPU</button>
+            <div id="webgpuStatus" class="status"></div>
+        </div>
+
+        <div class="section">
+            <h2>4. Mock MetaISP Test</h2>
+            <button onclick="testMockMetaISP()">Test Mock MetaISP</button>
+            <div id="progressBar" style="display: none;">
+                <div id="progressFill"></div>
+            </div>
+            <div id="metaispStatus" class="status"></div>
+        </div>
+
+        <div class="section">
+            <h2>Test Results Summary</h2>
+            <pre id="summary"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Global results storage
+        const testResults = {
+            environment: null,
+            simpleModel: null,
+            webgpu: null,
+            metaisp: null
+        };
+
+        function updateSummary() {
+            const summary = document.getElementById('summary');
+            summary.textContent = JSON.stringify(testResults, null, 2);
+        }
+
+        function setStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.className = `status ${type}`;
+            element.innerHTML = message;
+        }
+
+        function updateProgress(percent) {
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percent + '%';
+        }
+
+        async function checkEnvironment() {
+            setStatus('envStatus', 'Checking environment...', 'info');
+            
+            try {
+                const results = {
+                    onnxRuntime: typeof ort !== 'undefined',
+                    onnxVersion: ort ? ort.env.versions.ort : 'N/A',
+                    webAssembly: typeof WebAssembly !== 'undefined',
+                    webGPU: 'gpu' in navigator,
+                    webGPUAdapter: false,
+                    availableBackends: []
+                };
+
+                // Check WebGPU adapter
+                if (results.webGPU) {
+                    try {
+                        const adapter = await navigator.gpu.requestAdapter();
+                        results.webGPUAdapter = adapter !== null;
+                        if (adapter) {
+                            const info = await adapter.requestAdapterInfo();
+                            results.webGPUInfo = {
+                                vendor: info.vendor || 'Unknown',
+                                architecture: info.architecture || 'Unknown',
+                                description: info.description || 'Unknown'
+                            };
+                        }
+                    } catch (e) {
+                        console.error('WebGPU adapter error:', e);
+                    }
+                }
+
+                // Check available backends
+                if (ort) {
+                    results.availableBackends = ort.env.wasm.wasmPaths ? ['wasm'] : [];
+                    if (results.webGPUAdapter) {
+                        results.availableBackends.push('webgpu');
+                    }
+                }
+
+                testResults.environment = results;
+                updateSummary();
+
+                let statusHtml = '<h3>Environment Check Results:</h3><ul>';
+                statusHtml += `<li>ONNX Runtime: ${results.onnxRuntime ? '✅' : '❌'} (${results.onnxVersion})</li>`;
+                statusHtml += `<li>WebAssembly: ${results.webAssembly ? '✅' : '❌'}</li>`;
+                statusHtml += `<li>WebGPU API: ${results.webGPU ? '✅' : '❌'}</li>`;
+                statusHtml += `<li>WebGPU Adapter: ${results.webGPUAdapter ? '✅' : '❌'}</li>`;
+                if (results.webGPUInfo) {
+                    statusHtml += `<li>GPU: ${results.webGPUInfo.vendor} - ${results.webGPUInfo.description}</li>`;
+                }
+                statusHtml += `<li>Available Backends: ${results.availableBackends.join(', ') || 'None'}</li>`;
+                statusHtml += '</ul>';
+
+                setStatus('envStatus', statusHtml, 'success');
+            } catch (error) {
+                testResults.environment = { error: error.message };
+                updateSummary();
+                setStatus('envStatus', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSimpleModel() {
+            setStatus('simpleStatus', 'Creating and testing simple model...', 'info');
+            
+            try {
+                // Create a simple model: y = 2x + 1
+                const session = await ort.InferenceSession.create(
+                    createSimpleONNXModel(),
+                    { executionProviders: ['wasm'] }
+                );
+
+                // Test inference
+                const input = new ort.Tensor('float32', new Float32Array([1, 2, 3, 4]), [4, 1]);
+                const feeds = { input };
+                
+                const startTime = performance.now();
+                const results = await session.run(feeds);
+                const inferenceTime = performance.now() - startTime;
+                
+                const output = results.output.data;
+                const expected = [3, 5, 7, 9]; // 2x + 1
+                
+                const correct = Array.from(output).every((val, idx) => 
+                    Math.abs(val - expected[idx]) < 0.001
+                );
+
+                testResults.simpleModel = {
+                    success: correct,
+                    inferenceTime: inferenceTime.toFixed(2) + 'ms',
+                    input: Array.from(input.data),
+                    output: Array.from(output),
+                    expected: expected
+                };
+                updateSummary();
+
+                setStatus('simpleStatus', 
+                    `<h3>Simple Model Test:</h3>
+                    <ul>
+                        <li>Model: y = 2x + 1</li>
+                        <li>Input: [${Array.from(input.data).join(', ')}]</li>
+                        <li>Output: [${Array.from(output).join(', ')}]</li>
+                        <li>Expected: [${expected.join(', ')}]</li>
+                        <li>Inference time: ${inferenceTime.toFixed(2)}ms</li>
+                        <li>Result: ${correct ? '✅ Correct' : '❌ Incorrect'}</li>
+                    </ul>`,
+                    correct ? 'success' : 'error'
+                );
+            } catch (error) {
+                testResults.simpleModel = { error: error.message };
+                updateSummary();
+                setStatus('simpleStatus', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testWebGPU() {
+            setStatus('webgpuStatus', 'Testing WebGPU backend...', 'info');
+            
+            try {
+                // Check if WebGPU is available
+                if (!('gpu' in navigator)) {
+                    throw new Error('WebGPU is not available in this browser');
+                }
+
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) {
+                    throw new Error('No WebGPU adapter found');
+                }
+
+                // Try to create a session with WebGPU
+                const session = await ort.InferenceSession.create(
+                    createSimpleONNXModel(),
+                    { 
+                        executionProviders: ['webgpu', 'wasm'],
+                        graphOptimizationLevel: 'all'
+                    }
+                );
+
+                // Run inference
+                const input = new ort.Tensor('float32', 
+                    new Float32Array([1, 2, 3, 4, 5, 6, 7, 8]), 
+                    [8, 1]
+                );
+                
+                const startTime = performance.now();
+                const results = await session.run({ input });
+                const inferenceTime = performance.now() - startTime;
+
+                const executionProvider = session.handler._executionProviders?.[0] || 'Unknown';
+
+                testResults.webgpu = {
+                    success: true,
+                    executionProvider,
+                    inferenceTime: inferenceTime.toFixed(2) + 'ms',
+                    inputShape: input.dims,
+                    outputShape: results.output.dims
+                };
+                updateSummary();
+
+                setStatus('webgpuStatus', 
+                    `<h3>WebGPU Backend Test:</h3>
+                    <ul>
+                        <li>Status: ✅ Working</li>
+                        <li>Execution Provider: ${executionProvider}</li>
+                        <li>Inference time: ${inferenceTime.toFixed(2)}ms</li>
+                        <li>Input shape: [${input.dims.join(', ')}]</li>
+                        <li>Output shape: [${results.output.dims.join(', ')}]</li>
+                    </ul>`,
+                    'success'
+                );
+            } catch (error) {
+                testResults.webgpu = { error: error.message };
+                updateSummary();
+                setStatus('webgpuStatus', 
+                    `<h3>WebGPU Backend Test:</h3>
+                    <p>WebGPU is not available or not working properly.</p>
+                    <p>Error: ${error.message}</p>
+                    <p>This is normal for many browsers. WASM backend will be used instead.</p>`,
+                    'info'
+                );
+            }
+        }
+
+        async function testMockMetaISP() {
+            setStatus('metaispStatus', 'Testing mock MetaISP pipeline...', 'info');
+            document.getElementById('progressBar').style.display = 'block';
+            updateProgress(0);
+            
+            try {
+                // Simulate MetaISP pipeline stages
+                const stages = [
+                    { name: 'Initialize model', progress: 10 },
+                    { name: 'Load RAW data', progress: 25 },
+                    { name: 'Extract Bayer channels', progress: 40 },
+                    { name: 'Prepare metadata', progress: 50 },
+                    { name: 'Neural processing', progress: 75 },
+                    { name: 'Post-processing', progress: 90 },
+                    { name: 'Generate output', progress: 100 }
+                ];
+
+                const results = {
+                    stages: [],
+                    totalTime: 0
+                };
+
+                const startTime = performance.now();
+
+                for (const stage of stages) {
+                    const stageStart = performance.now();
+                    
+                    // Simulate processing
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    const stageTime = performance.now() - stageStart;
+                    results.stages.push({
+                        name: stage.name,
+                        time: stageTime.toFixed(2) + 'ms'
+                    });
+                    
+                    updateProgress(stage.progress);
+                    setStatus('metaispStatus', 
+                        `Processing: ${stage.name} (${stage.progress}%)`, 
+                        'info'
+                    );
+                }
+
+                results.totalTime = (performance.now() - startTime).toFixed(2) + 'ms';
+                results.success = true;
+
+                // Simulate output metadata
+                results.output = {
+                    width: 2688,
+                    height: 2688,
+                    channels: 3,
+                    device: 'iPhone',
+                    processingMode: 'Neural ISP'
+                };
+
+                testResults.metaisp = results;
+                updateSummary();
+
+                let statusHtml = '<h3>Mock MetaISP Pipeline Test:</h3><ul>';
+                for (const stage of results.stages) {
+                    statusHtml += `<li>${stage.name}: ${stage.time}</li>`;
+                }
+                statusHtml += `</ul><p><strong>Total time: ${results.totalTime}</strong></p>`;
+                statusHtml += `<p>Output: ${results.output.width}x${results.output.height} ${results.output.device} image</p>`;
+
+                setStatus('metaispStatus', statusHtml, 'success');
+            } catch (error) {
+                testResults.metaisp = { error: error.message };
+                updateSummary();
+                setStatus('metaispStatus', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Helper function to create a simple ONNX model
+        function createSimpleONNXModel() {
+            // This creates a minimal ONNX model that computes y = 2x + 1
+            // In real implementation, this would load an actual .onnx file
+            
+            // For now, we'll use a data URL with a pre-built simple model
+            // This is a base64-encoded ONNX model
+            const modelData = 'CgtvcnRfZXhhbXBsZRIVCgVpbnB1dBIGb3V0cHV0KgZBZGRfMUIQCg4KCGJhY2tlbmRzEgJ0ZhomCgZBZGRfMRIFaW5wdXQaBmJpYXNfMSoGb3V0cHV0OgNBZGRKHAoGYmlhc18xEhIKEBIGCgEBCgEx/z8KAQL/P1oRCgVpbnB1dBIICgIIAQgBGAFiEQoGb3V0cHV0EgcKAggBCAEYAUIGCAEQAhgBWg1vcnRfZXhhbXBsZV8x';
+            
+            // Decode base64 to Uint8Array
+            const binaryString = atob(modelData);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            return bytes.buffer;
+        }
+
+        // Auto-run environment check on load
+        window.addEventListener('load', () => {
+            checkEnvironment();
+        });
+    </script>
+</body>
+</html>
