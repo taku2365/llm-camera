@@ -1,0 +1,130 @@
+{
+  "test_date": "2025-07-01T14:12:46.535495",
+  "test_type": "ONNX Runtime MetaISP Simulation",
+  "onnx_version": "1.22.0",
+  "files": [
+    {
+      "filename": "IMG_0011_2.5x.DNG",
+      "bayer_shape": [
+        4,
+        2016,
+        1512
+      ],
+      "rgb_shape": [
+        3,
+        4032,
+        3024
+      ],
+      "metadata": {
+        "iso": 100,
+        "exposure": 0.016666666666666666,
+        "wb_coeffs": [
+          2.0,
+          1.0,
+          1.0,
+          1.5
+        ],
+        "device_id": 2,
+        "camera_model": "iPhone 12 Pro Max",
+        "width": 3024,
+        "height": 4032
+      },
+      "onnx_test": {
+        "success": true,
+        "output_shape": [
+          1,
+          3,
+          224,
+          224
+        ],
+        "output_range": [
+          -0.8472649455070496,
+          1.1650404930114746
+        ],
+        "provider": "CPUExecutionProvider"
+      }
+    },
+    {
+      "filename": "IMG_0012_1x.DNG",
+      "bayer_shape": [
+        4,
+        2016,
+        1512
+      ],
+      "rgb_shape": [
+        3,
+        4032,
+        3024
+      ],
+      "metadata": {
+        "iso": 100,
+        "exposure": 0.016666666666666666,
+        "wb_coeffs": [
+          2.0,
+          1.0,
+          1.0,
+          1.5
+        ],
+        "device_id": 2,
+        "camera_model": "iPhone 12 Pro Max",
+        "width": 3024,
+        "height": 4032
+      },
+      "onnx_test": {
+        "success": true,
+        "output_shape": [
+          1,
+          3,
+          224,
+          224
+        ],
+        "output_range": [
+          -0.8472649455070496,
+          1.1650404930114746
+        ],
+        "provider": "CPUExecutionProvider"
+      }
+    },
+    {
+      "filename": "IMG_0014_.5.DNG",
+      "bayer_shape": [
+        4,
+        2016,
+        1512
+      ],
+      "rgb_shape": [
+        3,
+        4032,
+        3024
+      ],
+      "metadata": {
+        "iso": 100,
+        "exposure": 0.016666666666666666,
+        "wb_coeffs": [
+          2.0,
+          1.0,
+          1.0,
+          1.5
+        ],
+        "device_id": 2,
+        "camera_model": "iPhone 12 Pro Max",
+        "width": 3024,
+        "height": 4032
+      },
+      "onnx_test": {
+        "success": true,
+        "output_shape": [
+          1,
+          3,
+          224,
+          224
+        ],
+        "output_range": [
+          -0.8472649455070496,
+          1.1650404930114746
+        ],
+        "provider": "CPUExecutionProvider"
+      }
+    }
+  ]
+}

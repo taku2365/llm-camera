@@ -1,0 +1,66 @@
+{
+  "test_date": "2025-07-01T14:09:52.751110",
+  "test_description": "iPhone ProRAW DNG compatibility test for MetaISP",
+  "files": [
+    {
+      "filename": "IMG_0011_2.5x.DNG",
+      "size_mb": 11.840717315673828,
+      "modified": "2025-07-01T14:08:36.870669",
+      "lens": "Telephoto (2.5x)",
+      "libraw_compatible": true,
+      "metaisp_notes": [
+        "\u26a0 Device detection may be needed"
+      ]
+    },
+    {
+      "filename": "IMG_0012_1x.DNG",
+      "size_mb": 18.52413845062256,
+      "modified": "2025-07-01T14:08:36.770669",
+      "lens": "Wide (1x)",
+      "libraw_compatible": true,
+      "metaisp_notes": [
+        "\u26a0 Device detection may be needed"
+      ]
+    },
+    {
+      "filename": "IMG_0014_.5.DNG",
+      "size_mb": 15.804147720336914,
+      "modified": "2025-07-01T14:08:36.830669",
+      "lens": "Ultra-wide (0.5x)",
+      "libraw_compatible": true,
+      "metaisp_notes": [
+        "\u26a0 Device detection may be needed"
+      ]
+    },
+    {
+      "filename": "IMG_0118.DNG",
+      "size_mb": 34.08120536804199,
+      "modified": "2025-07-01T14:08:36.540668",
+      "lens": "Unknown",
+      "libraw_compatible": true,
+      "metaisp_notes": [
+        "\u26a0 Device detection may be needed"
+      ]
+    },
+    {
+      "filename": "IMG_0122.DNG",
+      "size_mb": 25.879751205444336,
+      "modified": "2025-07-01T14:08:36.610668",
+      "lens": "Unknown",
+      "libraw_compatible": true,
+      "metaisp_notes": [
+        "\u26a0 Device detection may be needed"
+      ]
+    },
+    {
+      "filename": "IMG_0125.DNG",
+      "size_mb": 26.96467685699463,
+      "modified": "2025-07-01T14:08:36.720668",
+      "lens": "Unknown",
+      "libraw_compatible": true,
+      "metaisp_notes": [
+        "\u26a0 Device detection may be needed"
+      ]
+    }
+  ]
+}
